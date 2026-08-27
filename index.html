@@ -302,7 +302,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.3</strong></span>
+    <span><strong>DRAFT v0.4</strong></span>
     <span>2026-08-27</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -413,13 +413,13 @@
 
   <div class="rule">
     <div class="rule-head"><span class="rid">R7</span><span class="rule-title">End-to-end Lean 4, with a governed assumption registry</span></div>
-    <p>The R2 theorem is proved in Lean 4 against the pinned framework (a VCVio-style game-based setting; see OQ-1 for the pin). Two proof styles are admissible, and the rules must not privilege either:</p>
+    <p>The R2 theorem is proved in Lean 4 in <strong>VCVio</strong>, on a statement layer built over its <strong>HashSig</strong> library (OQ-1). The statement/proof separation follows the XMSS formalization on leanVM-b's <span class="mono">xmss-fv</span> branch: the pinned statement lives in one file a reviewer can read without proof machinery, the claim is discharged in a root module, and the axiom footprint is pinned with <code>#guard_msgs</code> so the build fails if it ever grows. Two proof styles are admissible, and the rules must not privilege either:</p>
     <ul>
       <li><strong>Direct ROM arguments</strong>: the bound proved outright against the random oracle.</li>
       <li><strong>Modular reductions (2025/055-style)</strong>: the scheme reduces to named idealized-hash properties (multi-target undetectability, collision-resistance variants, …), each of which carries a normative attack-complexity bound.</li>
     </ul>
     <p>For the modular style, terminal assumptions must come from the <strong>assumption registry</strong>: a versioned list in the rules repo, each entry a property with its assigned generic-attack bound (proven in the ROM where possible, conjectured with cryptanalytic justification otherwise). Registry additions go through a human-reviewed PR, the one deliberate exception to full automation, because an entrant must not be able to invent a conveniently strong assumption. The registry is seeded from the properties and bounds of ePrint 2025/055 and the SPHINCS+ line of analysis.</p>
-    <p class="check">lake build, zero sorry, axiom whitelist, assumption set ⊆ registry</p>
+    <p class="check">lake build, zero sorry, axiom footprint pinned via #guard_msgs, assumption set ⊆ registry</p>
   </div>
 
   <div class="rule">
@@ -520,7 +520,7 @@
   <ul>
     <li><strong>Encodings.</strong> Target-sum Winternitz kills the checksum chains; incomparable encodings generalize; the hypercube / top-layer encodings of 2025/1332 buy signature size at the same security. The encoding is the highest-leverage free variable.</li>
     <li><strong>Chain-count margin.</strong> There is a known (unpublished) attack putting standardized SPHINCS+ level 1 strictly below 128 bits provable. Conjecture on the table: +2 WOTS chains at chain length 8 recovers provable 128, a cheap fix if it holds. The rejected alternative, 129-bit digests, would poison SNARK aggregation; don't.</li>
-    <li><strong>Tighter proofs over bigger parameters.</strong> SPHINCS+-style bounds give ≈124.5 bits from 128-bit digests. If the R2/R3 pair is winnable with a tighter proof at <em>smaller</em> parameters, that beats padding the scheme. Conjecture: a proof technique that gets 127 provable bits out of 128-bit digests exists.</li>
+    <li><strong>Tighter proofs over bigger parameters.</strong> SPHINCS+-style bounds give ≈124.5 bits from 128-bit digests. If the R2/R3 pair is winnable with a tighter proof at <em>smaller</em> parameters, that beats padding the scheme. The 127-bit conjecture is no longer just a conjecture: leanVM-b's <span class="mono">xmss-fv</span> branch carries a machine-checked 127-bit classical theorem for a concrete synchronized target-sum XMSS. The open question is transporting that tightness to the stateless setting.</li>
     <li><strong>Grinding.</strong> WOTS+C-style grinding at signing time trades signer cycles (budgeted by R9) for signature bytes (scored). The R9 budget is deliberately the knob that bounds this trick.</li>
     <li><strong>Delegation-friendly signing.</strong> The <code>presign</code> split (§5.3) rewards schemes whose heavy bookkeeping is provably non-secret: the more of the signer that runs on the host under the adversary-visible-transcript rule, the less pressure on the 64 KiB / 1.5 s wallet budget. Designing so the delegated transcript is trivially simulatable is a new axis this cost model opens.</li>
     <li><strong>Keygen-time caching.</strong> The 4 KiB non-secret cache (R9) generalizes to a pebbling knob: storing the 2<sup>d</sup> nodes at depth d of a height-h top tree makes signing cost 2<sup>h−d</sup> leaf derivations, so cache size trades directly against signing time. Because the cache is adversary-replaceable in the security game, the trick is only available where tampering is provably harmless, which top-layer digests are.</li>
@@ -532,8 +532,8 @@
 <section id="openquestions">
   <h2><span class="secno">9</span>Open questions</h2>
 
-  <div class="oq"><span class="oq-id">OQ-1 · Lean framework pin</span>
-    <p>Which framework hosts the normative theorem? VCVio (game-based, Mathlib-scale, forking-lemma and Fiat-Shamir precedent) is the leading candidate; ArkLib is adjacent. The canonical-form extraction (R2/R3) needs a small amount of custom tooling either way. No completed end-to-end Lean 4 proof of a leanSig-class scheme exists yet; the first entrant builds part of the road.</p>
+  <div class="oq"><span class="oq-id">OQ-1 · Proof-stack details</span>
+    <p>The framework question is settled: VCVio hosts the normative theorem, and its HashSig library is the scheme-definition basis. HashSig already formalizes SLH-DSA end to end (WOTS, FORS, hypertree, encodings, a C13 variant with WOTS+C/FORS+C, concrete Keccak and SHA-2 instances, known-answer tests), so submissions start from working components rather than a blank page. The proof playbook exists too: the XMSS formalization on leanVM-b's <span class="mono">xmss-fv</span> branch carries <span class="mono">xmss_has_127_bits_of_classical_security</span>, a machine-checked 127-bit theorem for a concrete synchronized target-sum XMSS, proved over Lean's three standard axioms and nothing else (August 2026). What remains here is tooling: the canonical-form bound extraction for R2/R3, and porting the xmss-fv statement discipline into the pinned leanSPHINCS statement.</p>
   </div>
 
   <div class="oq"><span class="oq-id">OQ-2 · Cost-vector values</span>
@@ -557,7 +557,7 @@
   </div>
 
   <div class="oq"><span class="oq-id">OQ-7 · Expert review</span>
-    <p>R2/R3 thresholds (124/128) and the registry seed need sign-off from the leanSig authors, pending Benedikt's return from vacation. Emile's attack (SPHINCS+ level 1 below 128 provable) should be written up and cited as the motivating example for why R2 ≠ 128.</p>
+    <p>R2/R3 thresholds (124/128) and the registry seed need sign-off from the leanSig authors, pending Benedikt's return from vacation. Emile's attack (SPHINCS+ level 1 below 128 provable) should be written up and cited as the motivating example for why R2 ≠ 128. The xmss-fv result, 127 machine-checked bits for synchronized XMSS, adds a fresh question for that review: whether the R2 floor should move from 124 toward 127.</p>
   </div>
 </section>
 
@@ -569,7 +569,8 @@
     <li><em>SPHINCS minus: Efficient Stateless Post-Quantum Signature Verification on the EVM</em>, June 2026. <span class="mono"><a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">ethresear.ch/25165</a></span>.</li>
     <li><em>SPHINCS+ specification r3.1</em>, §7.1.1 ("Here, we are neglecting the small constant factors inside the logarithm.") <span class="mono"><a href="https://sphincs.org/data/sphincs+-r3.1-specification.pdf">sphincs.org</a></span>.</li>
     <li>Reference implementation lineage: <span class="mono"><a href="https://github.com/b-wagn/hash-sig">b-wagn/hash-sig</a></span> → leanEthereum/leanSig; parameter scripts in <span class="mono">b-wagn/hashsig-parameters</span>.</li>
-    <li>VCVio, a Lean 4 framework for oracle/game-based cryptographic proofs. <span class="mono"><a href="https://github.com/Verified-zkEVM/VCV-io">Verified-zkEVM/VCV-io</a></span>, eprint 2026/899.</li>
+    <li>VCVio, a Lean 4 framework for oracle/game-based cryptographic proofs, including the HashSig library (SLH-DSA and C13 formalizations with concrete Keccak/SHA-2 instances). <span class="mono"><a href="https://github.com/Verified-zkEVM/VCVio">Verified-zkEVM/VCVio</a></span>, eprint 2026/899.</li>
+    <li>XMSS security formalization with the machine-checked theorem <span class="mono">xmss_has_127_bits_of_classical_security</span>. <span class="mono"><a href="https://github.com/leanEthereum/leanVM-b/tree/xmss-fv">leanEthereum/leanVM-b, branch xmss-fv</a></span>.</li>
     <li>ArkLib, verified arguments of knowledge in Lean 4. <span class="mono"><a href="https://github.com/Verified-zkEVM/ArkLib">Verified-zkEVM/ArkLib</a></span>.</li>
     <li>RISC Zero zkVM optimization guide (SHA-256 accelerator: 68 cycles / 64-byte block). <span class="mono"><a href="https://dev.risczero.com/api/zkvm/optimization">dev.risczero.com</a></span>.</li>    <li>wolfSSL crypto benchmarks on STM32 (SHA-256 ≈ 44 cycles/byte, Cortex-M33 class). <span class="mono">wolfssl.com</span>.</li>
     <li>ST33K1M5C secure MCU data brief (Cortex-M35P @ 70 MHz, 64-Kbyte user RAM; the Ledger Nano S+ secure element). <span class="mono"><a href="https://www.st.com/resource/en/data_brief/st33k1m5c.pdf">st.com</a></span>.</li>
@@ -582,7 +583,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.3 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.4 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>
