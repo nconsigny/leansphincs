@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>leanSPHINCS</title>
+<meta name="description" content="Draft rules for a machine-judged competition to find the post-quantum hash-based signature for Ethereum accounts.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦋</text></svg>">
+<style>
+  :root {
+    --bg: #f4f6f3;
+    --surface: #fdfefc;
+    --ink: #1c2420;
+    --muted: #5c675f;
+    --accent: #2e6b4f;
+    --accent-soft: #e3ede6;
+    --border: #d7ded7;
+    --code-bg: #eaefe9;
+    --tbd: #8a5a22;
+    --tbd-bg: #f3ead9;
+    --chip-bg: #1c2420;
+    --chip-ink: #f4f6f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101512;
+      --surface: #161d18;
+      --ink: #dce4dd;
+      --muted: #96a29a;
+      --accent: #6cc49a;
+      --accent-soft: #1c2b23;
+      --border: #2a332d;
+      --code-bg: #1a221d;
+      --tbd: #d2a35e;
+      --tbd-bg: #2b2417;
+      --chip-bg: #dce4dd;
+      --chip-ink: #101512;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101512;
+    --surface: #161d18;
+    --ink: #dce4dd;
+    --muted: #96a29a;
+    --accent: #6cc49a;
+    --accent-soft: #1c2b23;
+    --border: #2a332d;
+    --code-bg: #1a221d;
+    --tbd: #d2a35e;
+    --tbd-bg: #2b2417;
+    --chip-bg: #dce4dd;
+    --chip-ink: #101512;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Charter", "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+    font-size: 17px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 1.25rem;
+  }
+  .page {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 3.5rem 0 6rem;
+  }
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  /* ---------- masthead ---------- */
+  header { margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.05;
+    margin: 0 0 0.75rem;
+    text-wrap: balance;
+  }
+  h1 .lean { color: var(--accent); font-style: italic; font-weight: 600; }
+  .subtitle {
+    font-size: 1.2rem;
+    color: var(--muted);
+    margin: 0 0 1.5rem;
+    max-width: 36rem;
+    text-wrap: balance;
+  }
+  .statusline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 0;
+  }
+  .statusline strong { color: var(--tbd); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 3.25rem; }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+  }
+  h2 .secno, h3 .secno {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.8em;
+    font-weight: 500;
+    color: var(--accent);
+    margin-right: 0.6rem;
+  }
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 2rem 0 0.6rem;
+  }
+  p { margin: 0 0 1rem; }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+  li { margin-bottom: 0.4rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  sup, sub { line-height: 0; }
+
+  code, .formula {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    font-size: 0.86em;
+    background: var(--code-bg);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    margin: 0 0 1rem;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* the objective, displayed */
+  .objective {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.6rem 1.5rem;
+    text-align: center;
+    margin: 1.5rem 0;
+  }
+  .objective .formula-big {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 1.25rem;
+    background: none;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .objective .caption {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* ---------- rule cards ---------- */
+  .rule {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem 1.3rem 0.9rem;
+    margin: 0 0 1rem;
+  }
+  .rule-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+  .rid {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--chip-bg);
+    color: var(--chip-ink);
+    border-radius: 4px;
+    padding: 0.15em 0.5em;
+    flex-shrink: 0;
+  }
+  .rule-title { font-weight: 700; font-size: 1rem; }
+  .rule p { margin-bottom: 0.6rem; font-size: 0.95rem; }
+  .rule p:last-of-type { margin-bottom: 0.4rem; }
+  .check {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    border-top: 1px dashed var(--border);
+    padding-top: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  .check::before { content: "CHECK · "; color: var(--muted); }
+
+  /* placeholder values pending calibration */
+  .tbd {
+    color: var(--tbd);
+    background: var(--tbd-bg);
+    border-radius: 3px;
+    padding: 0.05em 0.3em;
+    font-weight: 600;
+  }
+  .tbd-note {
+    font-size: 0.85rem;
+    color: var(--tbd);
+    margin-top: -0.4rem;
+  }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; margin: 0 0 1rem; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  th, td {
+    text-align: left;
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .tablecaption { font-size: 0.82rem; color: var(--muted); margin-top: -0.5rem; }
+
+  /* open questions */
+  .oq {
+    border-left: 3px solid var(--tbd);
+    padding: 0.1rem 0 0.1rem 1.1rem;
+    margin: 0 0 1.3rem;
+  }
+  .oq .oq-id {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--tbd);
+    letter-spacing: 0.06em;
+  }
+  .oq p { margin-bottom: 0.4rem; font-size: 0.95rem; }
+
+  /* references */
+  .refs { font-size: 0.85rem; color: var(--muted); }
+  .refs li { margin-bottom: 0.5rem; }
+  .refs .mono { font-size: 0.95em; }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  @media (max-width: 540px) {
+    h1 { font-size: 2.2rem; }
+    body { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <p class="eyebrow">Autoresearch competition · draft rules for review</p>
+  <h1><span class="lean">lean</span>SPHINCS</h1>
+  <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
+  <div class="statusline">
+    <span><strong>DRAFT v0.3</strong></span>
+    <span>2026-08-27</span>
+    <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
+  </div>
+</header>
+
+<section id="background">
+  <h2><span class="secno">1</span>Background &amp; motivation</h2>
+  <p>Ethereum's post-quantum roadmap runs on hash-based signatures. The consensus-track scheme is advancing in parallel through the leanSig line of work (Drake, Khovratovich, Kudinov, Wagner; ePrint <a href="https://eprint.iacr.org/2025/055">2025/055</a> and the follow-up <a href="https://eprint.iacr.org/2025/1332">LeanSig technical note</a>), which builds a generalized XMSS from incomparable encodings, instantiated with Poseidon2 for SNARK-friendliness. On the execution side, <a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">SPHINCS⁻</a> demonstrated the same levers this competition pulls: a traditional hash native to the verification environment (KECCAK256), signature budgets cut from 2<sup>64</sup> to 2<sup>14</sup>–2<sup>20</sup>, and WOTS+C/FORS+C compression, reaching 3.7 KB signatures verifiable on the EVM for ≈127k gas, without protocol changes. With the August 2026 pivot away from Poseidon toward traditional hash functions (SHA / BLAKE), the design space reopens: the SNARK-friendliness constraint is replaced by a zkVM cost model, and the security argument moves onto much firmer ground: a battle-tested hash modeled as a random oracle.</p>
+  <p><strong>leanSPHINCS</strong> is the name of the scheme this competition exists to find, and its home is the <strong>execution layer</strong>. leanSig answers the consensus-layer question: how a million validators sign attestations every slot, in a synchronized setting where the signing epoch is part of the scheme. This competition asks the execution-layer question next to it: which signature do quantum-resistant Ethereum <em>accounts</em> use? That question has a different shape, and the constraints in this document are that shape. Statelessness is non-negotiable, because account keys cannot safely keep a counter: users restore from seed phrases and sign from several devices, and for a stateful hash-based scheme a single reused state means a broken key. Key generation and signing are budgeted on hardware-wallet-class devices, because that is where account keys actually live. Verification is priced in zkVM cycles, because execution-layer signatures will be checked inside validity proofs at scale; SPHINCS⁻ told the native-EVM version of this story, and the zkVM cost model is its continuation. The 2<sup>20</sup> lifetime and the R4 decay rule mirror real wallet usage: a million signatures outlasts almost any account, and heavy accounts degrade gracefully rather than falling off a cliff.</p>
+  <p>To be explicit about scope: <strong>this competition does not pick Ethereum's consensus signature</strong>, and it does not compete with leanSig. The two run in parallel on the two layers, sharing techniques, proofs, and people. leanSPHINCS maps how far the stateless design space can be pushed under Ethereum-shaped cost models, and its outputs (schemes, formal proofs, cost frontiers, impossibility results) are evidence for everyone working on the problem, not a verdict.</p>
+  <p>The competition is an <em>autoresearch</em> competition: it is designed so that autonomous AI research agents can participate on equal footing with human cryptographers. That imposes one discipline on us, the organizers, which turns out to be a virtue: <strong>every rule must be machine-checkable</strong>. Eligibility is decided by a Lean 4 compiler and a benchmark harness, not a jury. "Close to NIST level 1" is not a Lean 4 statement, so §4 makes it one.</p>
+</section>
+
+<section id="format">
+  <h2><span class="secno">2</span>The autoresearch format</h2>
+  <p>The format follows a pattern that recent autoresearch challenges, most directly <a href="https://blog.ethereum.org/en/2026/08/20/better-codes-challenge">better.codes</a> (launched August 2026), have already proven: a pinned problem statement, a public frontier repository, and a deterministic promotion gate. Solvers sign in, clone the challenge repo, and work inside a designated submission surface; everything else is pinned. The judging pipeline runs, in order:</p>
+  <ol>
+    <li><strong>Proof check.</strong> <code>lake build</code> against a pinned Lean 4 toolchain and dependency set. Zero <code>sorry</code>; axioms restricted to a whitelist; a <em>comparator</em> checks that the exported top-level theorem exactly matches the pinned statement (§4, R7); the scheme's own definitions are the only free part.</li>
+    <li><strong>Rule audit.</strong> Static checks: security-bound extraction and bit-security computation (R2, R3, R4), public-key size (R5), interface conformance (R8).</li>
+    <li><strong>Metering.</strong> The instrumented RISC-V environment (§5) executes every stage and reports the hash, memory, and instruction meters per surface. Execution is fully virtualized and deterministic: identical inputs give identical counts.</li>
+    <li><strong>Score &amp; promotion.</strong> Computed from §3, published with the full CI log. A submission is <em>promoted</em> only if it beats the leaderboard score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier.</li>
+  </ol>
+  <p>Promoted submissions merge into the <strong>public frontier repository</strong>, credited to the solver <em>and</em> the model used. The competition is cumulative, not sealed: anyone may build on any promoted submission, and lemmas, proof techniques, parameter dead-ends, and impossibility results are upstreamed so later solvers, human or agent, skip them. Negative results that provably close off part of the design space (e.g. "no parameter choice in this encoding family satisfies R2+R3 below 1.2 KiB") earn credit too.</p>
+  <p>No human judgment sits in the scoring loop. Humans maintain the rules repository, the assumption registry (R7), and the harnesses, all versioned, with changes applying only to future submissions. The harness itself gets an external audit before launch and a standing bounty for rule exploits: zk.golf's post-launch harness bug, caught by an outside auditor, is the cautionary precedent.</p>
+
+  <h3><span class="secno">2.1</span>Sibling competitions, and what we take from each</h3>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Competition</th><th>Task</th><th>Pattern adopted here</th></tr>
+    <tr>
+      <td><a href="https://better.codes">better.codes</a></td>
+      <td>Raise the machine-checked soundness bound of koalaIRS12 (Reed–Solomon proximity, Lean 4 / ArkLib) toward 128 bits</td>
+      <td>Pinned theorem + comparator; score extracted from the Lean statement itself; promotion to a public repo credited to solver and model; upstreaming of lemmas and impossibility results</td>
+    </tr>
+    <tr>
+      <td><a href="https://zk.golf">zk.golf</a></td>
+      <td>Golf ZK circuits against a pinned formal interface, correctness proved in Lean 4</td>
+      <td>Costs are <em>proven</em>, not just measured (submissions carry cost proofs); "fearless optimization", since the kernel blocks unsound tricks; external audit of the harness</td>
+    </tr>
+    <tr>
+      <td><a href="https://snark.fast">snark.fast</a></td>
+      <td>Maximize BLAKE3 compressions/s on x86 and Apple Silicon</td>
+      <td>A pinned trusted verifier gates every promotion; per-model improvement tracking (+270% over baseline in two weeks)</td>
+    </tr>
+    <tr>
+      <td><a href="https://ecdsa.fail">ecdsa.fail</a></td>
+      <td>Quantum circuits attacking ECDSA</td>
+      <td>Spacetime score history charts; Pareto-frontier tracking alongside the scalar score; the full record of progress legible to all participants</td>
+    </tr>
+  </table>
+  </div>
+  <p class="tablecaption">All four run fully automated judging. better.codes in particular already scores a Lean-checked security statement on a public leaderboard, the same core mechanism leanSPHINCS needs; its submission-surface and comparator design can be reused nearly as-is.</p>
+</section>
+
+<section id="objective">
+  <h2><span class="secno">3</span>Objective</h2>
+  <div class="objective">
+    <span class="formula-big">minimize&nbsp;&nbsp;spacetime&nbsp;=&nbsp;|σ|&nbsp;×&nbsp;T<sub>verify</sub></span>
+    <p class="caption">signature size in bytes × verification cost in weighted RISC-V cycles under the verification vector (§5), among all submissions satisfying R1–R9</p>
+  </div>
+  <p>The product form reflects the deployment reality: signature bytes are paid in gossip bandwidth and data availability, verification cycles are paid in SNARK-aggregation proving cost, and the two trade off against each other throughout the design space (Winternitz parameter, tree shape, encoding choice). A scheme that wins on one axis by exploding the other should not win the competition.</p>
+  <p>Keygen and signing times, public-key size, and security level are deliberately <em>constraints</em>, not scored dimensions: they need to be good enough, and beyond good enough, extra performance there does not help Ethereum. All optimization pressure goes to the verifier-side product.</p>
+</section>
+
+<section id="rules">
+  <h2><span class="secno">4</span>Rules</h2>
+  <p>A submission is <strong>eligible</strong> iff it satisfies all of R1–R9. Eligible submissions are ranked by the §3 score alone.</p>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R1</span><span class="rule-title">Scheme class</span></div>
+    <p>The scheme is a <strong>stateless</strong> hash-based signature: key generation, signing, and verification are deterministic or randomized algorithms whose security reduces <em>only</em> to properties of hash functions modeled as random oracles. No algebraic assumptions. Signing keeps no state between signatures (a synchronized/epoch-based variant is a separate track; see OQ-5).</p>
+    <p>Hash instantiations must come from the allowlist: <span class="mono">SHA3-256 / SHAKE128, SHA-256, BLAKE3</span>. Internal digest lengths are the submitter's choice (but see R3's pressure toward 128-bit digests, and the zkVM word-size warning in §8).</p>
+    <p class="check">structural audit of the Lean development: the theorem's assumption set is exactly the registered oracle properties</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R2</span><span class="rule-title">Security floor: 124 bits provable, classical ROM</span></div>
+    <p>The submission proves, in Lean 4, a concrete EUF-CMA bound in the random-oracle model: for every adversary making at most q<sub>H</sub> hash queries and q<sub>S</sub> ≤ 2<sup>20</sup> signing queries,</p>
+    <p style="text-align:center"><code>Adv(A) ≤ B(q_H, q_S)</code></p>
+    <p>where <code>B</code> is in <em>canonical form</em>: a finite sum of terms <code>c_i · q_H^{a_i} · q_S^{b_i} · 2^{-n·d_i}</code> with explicit rational constants <code>c_i</code>. Define the <strong>provable security level</strong> λ(B) as the largest λ such that B(q<sub>H</sub>, q<sub>S</sub>) ≤ q<sub>H</sub> / 2<sup>λ</sup> for all 1 ≤ q<sub>H</sub> ≤ 2<sup>λ</sup> and q<sub>S</sub> ≤ 2<sup>20</sup>. Require <strong>λ(B) ≥ 124</strong>.</p>
+    <p class="check">bound extracted from the Lean statement; λ(B) computed mechanically by the rule auditor</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R3</span><span class="rule-title">Idealized bound: 128 bits with constants dropped</span></div>
+    <p>Let <code>B̃</code> be <code>B</code> with every constant <code>c_i</code> replaced by 1. Require <strong>λ(B̃) ≥ 128</strong>.</p>
+    <p>This is the SPHINCS+ convention made mechanical: the r3.1 specification computes bit security while "neglecting the small constant factors inside the logarithm" (§7.1.1). R2+R3 together land submissions where NIST level 1 in practice lands: a real proof within a few bits of 128, where the missing bits are exactly the log-of-constant losses that every accepted security argument in this literature absorbs. Because the canonical form makes "the constants" a syntactic object, dropping them is a computation, not a judgment call.</p>
+    <p class="check">same auditor as R2, run on B̃</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R4</span><span class="rule-title">Slow decay: security beyond the rated lifetime</span></div>
+    <p>Re-evaluating the same bound at q<sub>S</sub> ≤ 2<sup>32</sup> must give <strong>λ(B) ≥ 100</strong>. A key pushed 4096× past its rated lifetime degrades gracefully instead of falling off a cliff.</p>
+    <p class="check">same auditor as R2, with q_S = 2^32</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R5</span><span class="rule-title">Quantum security: heuristic, not proved in-competition</span></div>
+    <p>No QROM proof is required. The working heuristic is <em>quantum security ≈ classical security / 2</em>, giving ≥ 62-bit QROM at 2<sup>20</sup> signatures and ≥ 50-bit at 2<sup>32</sup> from R2/R4; this meets the 64-bit target up to the same constant-factor tolerance R3 grants classically. A QROM proof for the winning scheme is a post-competition deliverable of the organizers, not the entrants. Requiring it in-competition would multiply the formalization burden for every entrant to certify a bound we expect to hold generically for ROM proofs of this shape.</p>
+    <p class="check">none (follows from R2/R4 by the stated heuristic)</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R6</span><span class="rule-title">Public key ≤ 64 bytes</span></div>
+    <p>The serialized public key is at most 64 bytes. (Keys are meant to live on-chain; a Merkle root plus parameters fits comfortably.)</p>
+    <p class="check">static check on the reference implementation's serialization</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R7</span><span class="rule-title">End-to-end Lean 4, with a governed assumption registry</span></div>
+    <p>The R2 theorem is proved in Lean 4 against the pinned framework (a VCVio-style game-based setting; see OQ-1 for the pin). Two proof styles are admissible, and the rules must not privilege either:</p>
+    <ul>
+      <li><strong>Direct ROM arguments</strong>: the bound proved outright against the random oracle.</li>
+      <li><strong>Modular reductions (2025/055-style)</strong>: the scheme reduces to named idealized-hash properties (multi-target undetectability, collision-resistance variants, …), each of which carries a normative attack-complexity bound.</li>
+    </ul>
+    <p>For the modular style, terminal assumptions must come from the <strong>assumption registry</strong>: a versioned list in the rules repo, each entry a property with its assigned generic-attack bound (proven in the ROM where possible, conjectured with cryptanalytic justification otherwise). Registry additions go through a human-reviewed PR, the one deliberate exception to full automation, because an entrant must not be able to invent a conveniently strong assumption. The registry is seeded from the properties and bounds of ePrint 2025/055 and the SPHINCS+ line of analysis.</p>
+    <p class="check">lake build, zero sorry, axiom whitelist, assumption set ⊆ registry</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R8</span><span class="rule-title">Interface conformance</span></div>
+    <p>Fixed API: <code>keygen(seed) → (pk, sk, cache)</code>, <code>sign(sk, cache, msg) → σ</code>, <code>verify(pk, msg, σ) → bool</code>, plus an optional non-secret <code>presign</code> stage (§5.3). Both auxiliary channels are folded into the R2 game rather than trusted: the <code>presign</code> transcript is adversary-visible, and the <code>cache</code> is adversary-<em>replaceable</em> (R9, §5.2). Messages are 32 bytes (the protocol signs digests), verification is deterministic, serialization is byte-exact. The reference implementation is Rust targeting the virtual RISC-V environment, <code>no_std</code> for the wallet-side stages.</p>
+    <p class="check">conformance test vectors in the harness</p>
+  </div>
+
+  <div class="rule">
+    <div class="rule-head"><span class="rid">R9</span><span class="rule-title">Wallet-side budgets</span></div>
+    <p>On the wallet cost vector (§5.2): key generation ≤ 45 s and signing ≤ 1.5 s at the 160 MHz anchor, signer RAM ≤ 64 KiB (the user RAM of the Ledger Nano S+ secure element), plus a <strong>persistent non-secret cache of ≤ 4 KiB</strong>, written at key generation and readable at signing (§5.2). The caps bind the wallet-side stages only; delegated pre-signing has its own budget (§5.3).</p>
+    <p class="check">wallet-vector meter readings (§5.2)</p>
+  </div>
+
+  <h3>The required theorem, in shape</h3>
+  <p>Illustrative only; the normative Lean statement lives in the rules repo:</p>
+  <pre><code>theorem leanSPHINCS_euf_cma
+    (A : Adversary) (hH : A.queriesH ≤ qH) (hS : A.queriesS ≤ 2^20) :
+    eufCmaAdvantage SIG A ≤ B qH A.queriesS := by
+  ...
+-- B in canonical form, e.g.
+-- B qH qS = c₁ * qH / 2^n + c₂ * qS * qH / 2^(2*n) + ...</code></pre>
+</section>
+
+<section id="costmodels">
+  <h2><span class="secno">5</span>Cost model (normative): one machine, three vectors</h2>
+
+  <p>Every stage of the pipeline can run on RISC-V: zkVMs execute RISC-V already, wallet-class MCUs are well modeled by it, and the untrusted host is an ordinary CPU. The competition exploits this. All stages of the reference implementation execute in a single <strong>fully virtualized RISC-V environment</strong> that keeps three separate meters: hash-precompile calls (per 64-byte block), memory accesses (loads and stores), and all other executed instructions. A deployment surface is then just a <em>cost vector</em> over those meters, plus resource caps.</p>
+
+  <div class="tablewrap">
+  <table>
+    <tr><th>Surface</th><th>Stages</th><th>Cost vector</th><th>Role in the rules</th></tr>
+    <tr><td>zkVM verification</td><td><span class="mono">verify</span></td><td><span class="tbd">w<sub>hash</sub>, w<sub>mem</sub>, w<sub>cycle</sub></span> calibrated from zkVM cost data (§5.1, OQ-2)</td><td>scored: T<sub>verify</sub> (§3)</td></tr>
+    <tr><td>Hardware wallet, secret path</td><td><span class="mono">keygen, sign</span></td><td>hash at software cost (≈ 2816 cycles/block), everything else at 1</td><td>capped: R9</td></tr>
+    <tr><td>Untrusted host, non-secret</td><td><span class="mono">presign</span></td><td>all meters at 1</td><td>capped: <span class="tbd">2<sup>36</sup> weighted cycles</span> per invocation (§5.3)</td></tr>
+  </table>
+  </div>
+
+  <p>The payoff is determinism. Same binary, same inputs, identical meter readings, bit for bit: scores cannot drift across harness releases, there is no physical benchmark fleet to trust, and anyone can reproduce any leaderboard entry locally. Combined with the Lean-proven |σ| and hash counts (§5.1), <strong>the entire score is a machine-checked artifact</strong>.</p>
+
+  <h3><span class="secno">5.1</span>The verification vector</h3>
+  <p>Verification cost is what Ethereum pays to SNARK-aggregate signatures, so the verification weights are calibrated from published zkVM cost data rather than tied to any single zkVM release. Anchor: a production accelerator table prices SHA-256 at 68 cycles per 64-byte block (+6 init), and precompiles generally cut hashing 5–10× versus pure RV32IM. Fixing the exact weights, with a published rationale per allowlisted hash, is OQ-2.</p>
+  <p>For intuition: a verifier doing ~160 hash calls (the 2025/055 TSW w=2 figure) lands on the order of 10<sup>4</sup> weighted cycles plus control overhead. The competition exists to find how far below that the frontier lies, and at what signature size.</p>
+  <p>Following zk.golf, the score's Lean-side inputs are <strong>proven, not measured</strong>: the serialization spec makes |σ| a Lean-computed constant, and the verifier's hash-call count is provable in the same development.</p>
+
+  <h3><span class="secno">5.2</span>The wallet vector (secret path)</h3>
+  <p>The wallet model anchors to the secure-MCU class that real hardware wallets ship today: <strong>ARM Cortex-M33 @ 160 MHz</strong> (e.g. the STM32U5 in Trezor Safe 5; note that on such devices the cryptography runs on the MCU, not the secure element), with <em>software</em> hashing costed at the measured wolfCrypt figure of ≈ 44 cycles/byte for SHA-256 on this class. The memory cap comes from the tightest signer environment in wide deployment: the Ledger Nano S+ secure element (ST33K1M5C, a Cortex-M35P @ 70 MHz with 64 KB of user RAM; on that device the cryptography runs on the secure element itself). No hardware hash accelerator is assumed (OQ-3). The R9 time budgets translate into weighted-cycle caps at the 160 MHz anchor: 7.2 × 10<sup>9</sup> for key generation and 2.4 × 10<sup>8</sup> for signing; the 64 KiB RAM cap is enforced directly by the virtual environment's memory bound.</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Budget</th><th class="num">Target</th><th class="num">≈ hash blocks @ 44 cpb, 160 MHz</th></tr>
+    <tr><td>Key generation</td><td class="num">45 s</td><td class="num">~2.6 × 10<sup>6</sup></td></tr>
+    <tr><td>Signing</td><td class="num">1.5 s</td><td class="num">~8.5 × 10<sup>4</sup></td></tr>
+    <tr><td>Signer RAM</td><td class="num">64 KiB</td><td class="num">—</td></tr>
+    <tr><td>Non-secret cache (written at keygen)</td><td class="num">4 KiB</td><td class="num">—</td></tr>
+  </table>
+  </div>
+  <p class="tablecaption">The keygen budget admits designs that do real one-time work at key setup (roughly 2.6 million hash blocks of headroom); the signing budget leaves comfortable margin for grinding-style tricks. The RAM cap is the binding constraint: 64 KiB forces streaming Merkle computation instead of large in-memory state. The cache is what makes tall top trees affordable to sign with: in a height-14 top layer, keygen can store all 128 depth-7 digests (128 × 32 B = 4 KiB), and signing then rebuilds one height-7 subtree plus the cheap upper path, 2<sup>7</sup> leaf derivations instead of 2<sup>14</sup>. A square-root saving, paid once at keygen.</p>
+
+  <p>The cache holds only public material (intermediate Merkle digests are implied by published auth paths anyway), and like the presign boundary this is enforced by proof rather than trust: in the R2 game the adversary not only reads the cache but may <em>replace</em> it. A scheme survives that game only if a tampered cache can at worst make signing fail, never leak key material or enable one-time-key reuse. Tamper-detection, a few hashes to check a cached node before use, is cheap within the signing budget.</p>
+
+  <h3><span class="secno">5.3</span>The host vector (non-secret pre-signing)</h3>
+  <p>Splitting the signer in two is where the unified environment earns its keep. In hash-based schemes much of the signer's work is not secret at all: Merkle tree assembly over already-derived leaf public keys, auth-path maintenance, and similar bookkeeping can run on an ordinary computer. The interface therefore includes an optional <code>presign</code> stage (R8), invoked at key setup or ahead of a signature, that runs on the host surface with a generous budget.</p>
+  <p>The secrecy boundary is enforced by proof, not by trust: in the R2 security game the adversary observes the <code>presign</code> stage's entire input/output transcript. A submission that leaks anything useful through delegation breaks its own security theorem. No auditor has to decide what counts as "non-secret"; the Lean statement does.</p>
+</section>
+
+<section id="scoring">
+  <h2><span class="secno">6</span>Scoring, submissions, leaderboard</h2>
+  <ul>
+    <li><strong>Score</strong> = |σ| in bytes × T<sub>verify</sub> in weighted cycles, reported as byte-cycles. Lower wins. |σ| is proven in Lean; T<sub>verify</sub> is the deterministic meter reading under the verification vector (§5), reproducible bit for bit by anyone.</li>
+    <li><strong>Promotion</strong>: an eligible submission is promoted iff it beats the current best score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier. Promoted code merges into the public frontier repository under the competition license, and becomes the baseline everyone else builds on.</li>
+    <li><strong>Credit</strong>: every promotion is credited to the solver <em>and</em> the model used; the leaderboard publishes the score history, improvement-per-model, and the live Pareto frontier. The rules are the same for humans and agents; that is the point of making them mechanical.</li>
+    <li><strong>Ties</strong> break by earlier submission timestamp; a re-submission resets the timestamp.</li>
+    <li><strong>Reproducibility</strong>: the CI pipeline is the ground truth; anyone can re-run it. Scores are published with full logs and the exact harness commits.</li>
+    <li><strong>Rules bounty</strong>: exploits of the harness, the comparator, or the rule text are in scope, credited on the leaderboard, and patched with a rules-version bump.</li>
+    <li><strong>Prizes and timeline</strong>: <span class="tbd">TBD</span>.</li>
+  </ul>
+</section>
+
+<section id="baselines">
+  <h2><span class="secno">7</span>Baselines to beat</h2>
+  <p>Indicative figures from the generalized-XMSS literature; these set the opening leaderboard, not a floor. The SHA-3 rows are the relevant comparison (traditional hash); the Poseidon2 rows show where leanSig currently stands at the 2<sup>32</sup> lifetime.</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Instantiation</th><th>Hash</th><th class="num">Lifetime</th><th class="num">|σ|</th><th class="num">Verify (hashes)</th></tr>
+    <tr><td>TSW, w=4 (2025/055)</td><td>SHA-3</td><td class="num">2<sup>18</sup></td><td class="num">1.39 KiB</td><td class="num">—</td></tr>
+    <tr><td>TSW, w=2, δ=1.1 (2025/055)</td><td>SHA-3</td><td class="num">2<sup>18</sup></td><td class="num">2.22 KiB</td><td class="num">≈ 160</td></tr>
+    <tr><td>Winternitz range (2025/055)</td><td>SHA-3</td><td class="num">2<sup>18</sup></td><td class="num">1.06–4.17 KiB</td><td class="num">—</td></tr>
+    <tr><td>Top-layer TSW, v=64, w=8 (2025/1332)</td><td>Poseidon2</td><td class="num">2<sup>32</sup></td><td class="num">3.03 KiB</td><td class="num">—</td></tr>
+    <tr><td>Top-layer TSW, v=32, w=26 (2025/1332)</td><td>Poseidon2</td><td class="num">2<sup>32</sup></td><td class="num">2.03 KiB</td><td class="num">—</td></tr>
+  </table>
+  </div>
+  <p class="tablecaption">Published lifetimes differ from this competition's 2<sup>20</sup> target; treat as order-of-magnitude anchors. The b-wagn/hash-sig prototype (now continued in leanEthereum/leanSig) implements the SHA-3 rows.</p>
+</section>
+
+<section id="designspace">
+  <h2><span class="secno">8</span>Design space: known tricks, open frontier</h2>
+  <p>A non-exhaustive map for entrants, human or agent, of where the known wins and open conjectures sit:</p>
+  <ul>
+    <li><strong>Encodings.</strong> Target-sum Winternitz kills the checksum chains; incomparable encodings generalize; the hypercube / top-layer encodings of 2025/1332 buy signature size at the same security. The encoding is the highest-leverage free variable.</li>
+    <li><strong>Chain-count margin.</strong> There is a known (unpublished) attack putting standardized SPHINCS+ level 1 strictly below 128 bits provable. Conjecture on the table: +2 WOTS chains at chain length 8 recovers provable 128, a cheap fix if it holds. The rejected alternative, 129-bit digests, would poison SNARK aggregation; don't.</li>
+    <li><strong>Tighter proofs over bigger parameters.</strong> SPHINCS+-style bounds give ≈124.5 bits from 128-bit digests. If the R2/R3 pair is winnable with a tighter proof at <em>smaller</em> parameters, that beats padding the scheme. Conjecture: a proof technique that gets 127 provable bits out of 128-bit digests exists.</li>
+    <li><strong>Grinding.</strong> WOTS+C-style grinding at signing time trades signer cycles (budgeted by R9) for signature bytes (scored). The R9 budget is deliberately the knob that bounds this trick.</li>
+    <li><strong>Delegation-friendly signing.</strong> The <code>presign</code> split (§5.3) rewards schemes whose heavy bookkeeping is provably non-secret: the more of the signer that runs on the host under the adversary-visible-transcript rule, the less pressure on the 64 KiB / 1.5 s wallet budget. Designing so the delegated transcript is trivially simulatable is a new axis this cost model opens.</li>
+    <li><strong>Keygen-time caching.</strong> The 4 KiB non-secret cache (R9) generalizes to a pebbling knob: storing the 2<sup>d</sup> nodes at depth d of a height-h top tree makes signing cost 2<sup>h−d</sup> leaf derivations, so cache size trades directly against signing time. Because the cache is adversary-replaceable in the security game, the trick is only available where tampering is provably harmless, which top-layer digests are.</li>
+    <li><strong>zkVM-shaped verification.</strong> Keep digests within word-multiple sizes; batch hash calls into precompile-friendly blocks; structure Merkle paths for sequential memory access. Verification cycles are the scored resource: the verifier's instruction mix matters as much as its hash count.</li>
+    <li><strong>Multi-target tightness.</strong> The multi-target/multi-instance losses are where classical proofs bleed constants; this is where R3's forgiveness is spent, and where a clever proof reclaims it.</li>
+  </ul>
+</section>
+
+<section id="openquestions">
+  <h2><span class="secno">9</span>Open questions</h2>
+
+  <div class="oq"><span class="oq-id">OQ-1 · Lean framework pin</span>
+    <p>Which framework hosts the normative theorem? VCVio (game-based, Mathlib-scale, forking-lemma and Fiat-Shamir precedent) is the leading candidate; ArkLib is adjacent. The canonical-form extraction (R2/R3) needs a small amount of custom tooling either way. No completed end-to-end Lean 4 proof of a leanSig-class scheme exists yet; the first entrant builds part of the road.</p>
+  </div>
+
+  <div class="oq"><span class="oq-id">OQ-2 · Cost-vector values</span>
+    <p>The shape is settled: one virtualized RISC-V environment, three cost vectors (§5). What remains is fixing the numbers. The verification vector's per-hash, per-memory-access, and per-instruction weights need calibrating against published zkVM cost data, with a rationale per allowlisted hash, and the host pre-signing budget needs a value. Weights are versioned like every other rule; changes apply only to future submissions.</p>
+  </div>
+
+  <div class="oq"><span class="oq-id">OQ-3 · Wallet model details</span>
+    <p>The R9 budgets are set (45 s keygen, 1.5 s signing, 64 KiB RAM). Two details remain: whether a hardware SHA accelerator may be assumed (it roughly halves effective cycles per byte and exists in this MCU class), and whether the time budgets should additionally be validated on a secure-element profile, since the Nano S+ runs its Cortex-M35P at 70 MHz and wall-clock there is roughly 2.3× the 160 MHz model.</p>
+  </div>
+
+  <div class="oq"><span class="oq-id">OQ-4 · Provable bits in the score</span>
+    <p>Suggestion from the Berlin thread: make provable security a scored dimension rather than a gate, e.g. dividing spacetime by a function of λ(B) − 124, so tighter proofs are rewarded, not merely admitted. Elegant, but it couples the score to proof style; parked for v0.2 discussion.</p>
+  </div>
+
+  <div class="oq"><span class="oq-id">OQ-5 · Scope boundaries</span>
+    <p>Pure-ROM rules technically admit exotic constructions (a STARK-based "signature" is a ROM object). V1 scopes these out via R1's structural audit: partly on principle, partly because the Lean framework cannot yet express them. A synchronized (epoch-keyed) track, which is what validators actually need, may be added once the stateless track is stable.</p>
+  </div>
+
+  <div class="oq"><span class="oq-id">OQ-6 · Signature size soft cap</span>
+    <p>Should |σ| carry a hard cap near single-packet size? The safe UDP payload figure is 1232 bytes (IPv6 min MTU 1280 − headers; discv5 caps packets at 1280 B), but note consensus gossip does not actually impose it. The score already pressures size; a hard cap may be redundant. Leaning: no cap, keep the objective clean.</p>
+  </div>
+
+  <div class="oq"><span class="oq-id">OQ-7 · Expert review</span>
+    <p>R2/R3 thresholds (124/128) and the registry seed need sign-off from the leanSig authors, pending Benedikt's return from vacation. Emile's attack (SPHINCS+ level 1 below 128 provable) should be written up and cited as the motivating example for why R2 ≠ 128.</p>
+  </div>
+</section>
+
+<section id="refs">
+  <h2><span class="secno">A</span>References</h2>
+  <ol class="refs">
+    <li>Drake, Khovratovich, Kudinov, Wagner. <em>Hash-Based Multi-Signatures for Post-Quantum Ethereum</em>. <span class="mono"><a href="https://eprint.iacr.org/2025/055">eprint 2025/055</a></span>, published CiC Vol. 2 №1.</li>
+    <li>Drake, Khovratovich, Kudinov, Wagner. <em>Technical Note: LeanSig for Post-Quantum Ethereum</em>. <span class="mono"><a href="https://eprint.iacr.org/2025/1332">eprint 2025/1332</a></span>.</li>
+    <li><em>SPHINCS minus: Efficient Stateless Post-Quantum Signature Verification on the EVM</em>, June 2026. <span class="mono"><a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">ethresear.ch/25165</a></span>.</li>
+    <li><em>SPHINCS+ specification r3.1</em>, §7.1.1 ("Here, we are neglecting the small constant factors inside the logarithm.") <span class="mono"><a href="https://sphincs.org/data/sphincs+-r3.1-specification.pdf">sphincs.org</a></span>.</li>
+    <li>Reference implementation lineage: <span class="mono"><a href="https://github.com/b-wagn/hash-sig">b-wagn/hash-sig</a></span> → leanEthereum/leanSig; parameter scripts in <span class="mono">b-wagn/hashsig-parameters</span>.</li>
+    <li>VCVio, a Lean 4 framework for oracle/game-based cryptographic proofs. <span class="mono"><a href="https://github.com/Verified-zkEVM/VCV-io">Verified-zkEVM/VCV-io</a></span>, eprint 2026/899.</li>
+    <li>ArkLib, verified arguments of knowledge in Lean 4. <span class="mono"><a href="https://github.com/Verified-zkEVM/ArkLib">Verified-zkEVM/ArkLib</a></span>.</li>
+    <li>RISC Zero zkVM optimization guide (SHA-256 accelerator: 68 cycles / 64-byte block). <span class="mono"><a href="https://dev.risczero.com/api/zkvm/optimization">dev.risczero.com</a></span>.</li>    <li>wolfSSL crypto benchmarks on STM32 (SHA-256 ≈ 44 cycles/byte, Cortex-M33 class). <span class="mono">wolfssl.com</span>.</li>
+    <li>ST33K1M5C secure MCU data brief (Cortex-M35P @ 70 MHz, 64-Kbyte user RAM; the Ledger Nano S+ secure element). <span class="mono"><a href="https://www.st.com/resource/en/data_brief/st33k1m5c.pdf">st.com</a></span>.</li>
+    <li>discv5 wire protocol (1280-byte packet cap). <span class="mono"><a href="https://github.com/ethereum/devp2p/blob/master/discv5/discv5-wire.md">devp2p/discv5</a></span>.</li>
+    <li>Announcement of the pivot from Poseidon to SHA/BLAKE, J. Drake, Aug 2026. <span class="mono"><a href="https://x.com/drakefjustin/status/2087905684180418733">x.com/drakefjustin</a></span>.</li>
+    <li><em>Raising machine-checked security benchmarks to advance hash-based SNARKs through agentic collaboration</em> (better.codes launch), EF Blog, Aug 2026. <span class="mono"><a href="https://blog.ethereum.org/en/2026/08/20/better-codes-challenge">blog.ethereum.org</a></span>.</li>
+    <li><em>zk.golf: Fearless and Collaborative Optimization of Circuits</em>. <span class="mono"><a href="https://blog.zksecurity.xyz/posts/zkgolf/">blog post</a></span>; site: <span class="mono"><a href="https://zk.golf">zk.golf</a></span>.</li>
+    <li>Sibling autoresearch challenges: <span class="mono"><a href="https://ecdsa.fail">ecdsa.fail</a></span>, <span class="mono"><a href="https://snark.fast">snark.fast</a></span>.</li>
+  </ol>
+</section>
+
+<footer>
+  leanSPHINCS draft rules v0.3 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+</footer>
+
+</div>
+
+</body>
+</html>
