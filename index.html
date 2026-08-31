@@ -302,7 +302,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.5</strong></span>
+    <span><strong>DRAFT v0.6</strong></span>
     <span>2026-08-27</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -360,11 +360,11 @@
 <section id="objective">
   <h2><span class="secno">3</span>Objective</h2>
   <div class="objective">
-    <span class="formula-big">minimize&nbsp;&nbsp;spacetime&nbsp;=&nbsp;|σ|&nbsp;×&nbsp;T<sub>verify</sub></span>
-    <p class="caption">signature size in bytes × verification cost in weighted RISC-V cycles under the verification vector (§5), among all submissions satisfying R1–R9</p>
+    <span class="formula-big">minimize&nbsp;&nbsp;spacetime&nbsp;=&nbsp;|σ|<sup>α</sup>&nbsp;×&nbsp;T<sub>verify</sub></span>
+    <p class="caption">signature size in bytes raised to <span class="tbd">α = 1.25</span>, × verification cost in weighted RISC-V cycles under the verification vector (§5), among all submissions satisfying R1–R9</p>
   </div>
   <p>The product form reflects the deployment reality: signature bytes are paid in gossip bandwidth and data availability, verification cycles are paid in SNARK-aggregation proving cost, and the two trade off against each other throughout the design space (Winternitz parameter, tree shape, encoding choice). A scheme that wins on one axis by exploding the other should not win the competition.</p>
-  <p>The two factors are not equally durable. Proving keeps getting cheaper as zkVMs improve, while signature bytes are paid forever in bandwidth and data availability. On the long run, signature size matters more than verification time: ties break toward the smaller signature (§6), and a later rules version may weight size super-linearly instead of symmetrically.</p>
+  <p>The two factors are not equally durable. Proving keeps getting cheaper as zkVMs improve, while signature bytes are paid forever in bandwidth and data availability. On the long run, signature size matters more than verification time, and the score encodes this rather than deferring it: size enters super-linearly with exponent <span class="tbd">α = 1.25</span>, so a 1% saving in bytes outweighs a 1% saving in cycles. Ties still break toward the smaller signature (§6), and α is a versioned rules constant like the cost-vector weights (OQ-2).</p>
   <p>Keygen and signing times, public-key size, and security level are deliberately <em>constraints</em>, not scored dimensions: they need to be good enough, and beyond good enough, extra performance there does not help Ethereum. All optimization pressure goes to the verifier-side product.</p>
 </section>
 
@@ -500,7 +500,7 @@
 <section id="scoring">
   <h2><span class="secno">6</span>Scoring, submissions, leaderboard</h2>
   <ul>
-    <li><strong>Score</strong> = |σ| in bytes × T<sub>verify</sub> in weighted cycles, reported as byte-cycles. Lower wins. |σ| is proven in Lean; T<sub>verify</sub> is the deterministic meter reading under the verification vector (§5), reproducible bit for bit by anyone.</li>
+    <li><strong>Score</strong> = |σ|<sup>α</sup> × T<sub>verify</sub>, with |σ| in bytes, T<sub>verify</sub> in weighted cycles, and <span class="tbd">α = 1.25</span>. Lower wins. |σ| is proven in Lean; T<sub>verify</sub> is the deterministic meter reading under the verification vector (§5), reproducible bit for bit by anyone.</li>
     <li><strong>Promotion</strong>: an eligible submission is promoted iff it beats the current best score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier. Promoted code merges into the public frontier repository under the competition license, and becomes the baseline everyone else builds on.</li>
     <li><strong>Review gate</strong>: topping the CI leaderboard does not make a scheme <em>the</em> scheme. Automated checks decide eligibility and rank; a manual review by the organizers and the leanSig authors stands between the leaderboard and any award or adoption, to keep out submissions that satisfy the letter of the rules while missing their point. Review outcomes are published with reasons.</li>
     <li><strong>Credit</strong>: every promotion is credited to the solver <em>and</em> the model used; the leaderboard publishes the score history, improvement-per-model, and the live Pareto frontier. The rules are the same for humans and agents; that is the point of making them mechanical.</li>
@@ -550,7 +550,7 @@
   </div>
 
   <div class="oq"><span class="oq-id">OQ-2 · Cost-vector values</span>
-    <p>The shape is settled: one virtualized RISC-V environment, three cost vectors (§5). What remains is fixing the numbers. The verification vector's per-hash, per-memory-access, and per-instruction weights need calibrating against published zkVM cost data, with a rationale per registered hash, and the host pre-signing budget needs a value. Weights are versioned like every other rule; changes apply only to future submissions.</p>
+    <p>The shape is settled: one virtualized RISC-V environment, three cost vectors (§5). What remains is fixing the numbers. The verification vector's per-hash, per-memory-access, and per-instruction weights need calibrating against published zkVM cost data, with a rationale per registered hash, the host pre-signing budget needs a value, and the size exponent α needs sign-off. Weights are versioned like every other rule; changes apply only to future submissions.</p>
   </div>
 
   <div class="oq"><span class="oq-id">OQ-3 · Wallet model details</span>
@@ -597,7 +597,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.5 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.6 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>
