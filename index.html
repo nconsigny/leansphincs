@@ -302,7 +302,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.6</strong></span>
+    <span><strong>DRAFT v0.7</strong></span>
     <span>2026-08-27</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -374,8 +374,8 @@
 
   <div class="rule">
     <div class="rule-head"><span class="rid">R1</span><span class="rule-title">Scheme class</span></div>
-    <p>The scheme is a <strong>stateless</strong> hash-based signature: key generation, signing, and verification are deterministic or randomized algorithms whose security reduces <em>only</em> to properties of hash functions modeled as random oracles. No algebraic assumptions. Signing keeps no state between signatures (a synchronized/epoch-based variant is a separate track; see OQ-5).</p>
-    <p>The scheme is defined in Lean over an <strong>abstract oracle</strong> (a tweakable hash), so the construction is hash-agnostic by design. Any concrete instantiation is admissible if it is a conventional hash with no exploitable algebraic structure: SHA-2, SHA-3 / SHAKE, and BLAKE3 seed the <strong>hash registry</strong>, and further hashes join by registry PR under the same governance as R7's assumptions. Arithmetization-oriented hashes built on algebraic structure, Poseidon-style, stay out of scope. Internal digest lengths are the submitter's choice (but see R3's pressure toward 128-bit digests, and the zkVM word-size warning in §8).</p>
+    <p>The scheme is a <strong>stateless</strong> hash-based signature: key generation, signing, and verification are deterministic or randomized algorithms whose security reduces <em>only</em> to properties of hash functions modeled as random oracles. No algebraic assumptions. Signing keeps no state between signatures (a synchronized/epoch-based variant is a separate track; see OQ-5). The abstract-oracle discipline is also the scope fence: signature families that need a concrete hard problem on top of the oracle, MPCiTH- and VOLEiTH-style, cannot appear in the pure ROM (OQ-5).</p>
+    <p>The scheme is defined in Lean over an <strong>abstract oracle</strong> (a tweakable hash), so the construction is hash-agnostic by design. Any concrete instantiation is admissible if it is a conventional hash with no exploitable algebraic structure: SHA-2, SHA-3 / SHAKE, and BLAKE3 seed the <strong>hash registry</strong>, and further hashes join by registry PR under the same governance as R7's assumptions. Arithmetization-oriented hashes built on algebraic structure, Poseidon-style, stay out of scope. Internal digest lengths are the submitter's choice (but see R3's pressure toward 128-bit digests, and the zkVM word-size warning in §9).</p>
     <p class="check">structural audit of the Lean development: the theorem's assumption set is exactly the registered oracle properties</p>
   </div>
 
@@ -472,6 +472,8 @@
 
   <p>The payoff is determinism. Same binary, same inputs, identical meter readings, bit for bit: scores cannot drift across harness releases, there is no physical benchmark fleet to trust, and anyone can reproduce any leaderboard entry locally. Combined with the Lean-proven |σ| and hash counts (§5.1), <strong>the entire score is a machine-checked artifact</strong>.</p>
 
+  <p>The environment itself has a verified path. A formally verified RISC-V interpreter in Lean, extracted from the Sail specification, already exists as a standalone project (riscv-zkvm), and abstract oracles plus cost accounting are straightforward adjustments to it. With the meters computed by a verified interpreter, even the benchmark run is a Lean artifact: not just reproducible, but proven.</p>
+
   <h3><span class="secno">5.1</span>The verification vector</h3>
   <p>Verification cost is what Ethereum pays to SNARK-aggregate signatures, so the verification weights are calibrated from published zkVM cost data rather than tied to any single zkVM release. Anchor: a production accelerator table prices SHA-256 at 68 cycles per 64-byte block (+6 init), and precompiles generally cut hashing 5–10× versus pure RV32IM. Fixing the exact weights, with a published rationale per registered hash, is OQ-2.</p>
   <p>For intuition: a verifier doing ~160 hash calls (the 2025/055 TSW w=2 figure) lands on the order of 10<sup>4</sup> weighted cycles plus control overhead. The competition exists to find how far below that the frontier lies, and at what signature size.</p>
@@ -511,8 +513,22 @@
   </ul>
 </section>
 
+<section id="mvp">
+  <h2><span class="secno">7</span>The MVP track (phase 0)</h2>
+  <p>Before the full ruleset goes live, an internal MVP strips the competition to its engine, so the harness, the statement, and the leaderboard get exercised end to end. Six simplifications:</p>
+  <ol>
+    <li><strong>128-bit ROM only.</strong> No QROM statement, no standard-model side conditions, and no decay requirement past the lifetime (R4 is suspended in this track).</li>
+    <li><strong>Everything virtual.</strong> All stages run in the §5 environment; no physical devices anywhere.</li>
+    <li><strong>One oracle, no named hash.</strong> The only primitive is a blackbox random oracle modeling an ideal compression function, 96 B → 32 B; the hash registry is unused. A refinement under discussion: an N B → 32 B oracle whose cycle cost grows with N.</li>
+    <li><strong>Flat cost vector.</strong> Every RISC-V instruction costs 1 cycle, an oracle call costs <span class="tbd">10</span>, a memory call costs <span class="tbd">100</span> (numbers to be fixed).</li>
+    <li><strong>No hardening.</strong> Side channels and fault injection are out of scope.</li>
+    <li><strong>Plain spacetime.</strong> Score = |σ| × T<sub>verify</sub>, the simple product; the α exponent of §3 joins in the full track.</li>
+  </ol>
+  <p>Wallet-side caps (R9) and the presign and cache machinery stay defined but are not gating in phase 0. Everything the MVP surfaces (harness bugs, statement friction, cost-vector surprises) feeds the full rules before public launch.</p>
+</section>
+
 <section id="baselines">
-  <h2><span class="secno">7</span>Baselines to beat</h2>
+  <h2><span class="secno">8</span>Baselines to beat</h2>
   <p>Indicative figures from the generalized-XMSS literature; these set the opening leaderboard, not a floor. The SHA-3 rows are the relevant comparison (traditional hash); the Poseidon2 rows show where leanSig currently stands at the 2<sup>32</sup> lifetime.</p>
   <div class="tablewrap">
   <table>
@@ -528,7 +544,7 @@
 </section>
 
 <section id="designspace">
-  <h2><span class="secno">8</span>Design space: known tricks, open frontier</h2>
+  <h2><span class="secno">9</span>Design space: known tricks, open frontier</h2>
   <p>A non-exhaustive map for entrants, human or agent, of where the known wins and open conjectures sit:</p>
   <ul>
     <li><strong>Encodings.</strong> Target-sum Winternitz kills the checksum chains; incomparable encodings generalize; the hypercube / top-layer encodings of 2025/1332 buy signature size at the same security. The encoding is the highest-leverage free variable.</li>
@@ -543,14 +559,14 @@
 </section>
 
 <section id="openquestions">
-  <h2><span class="secno">9</span>Open questions</h2>
+  <h2><span class="secno">10</span>Open questions</h2>
 
   <div class="oq"><span class="oq-id">OQ-1 · Proof-stack details</span>
-    <p>The framework question is settled: VCVio hosts the normative theorem, and its HashSig library is the scheme-definition basis. HashSig already formalizes SLH-DSA end to end (WOTS, FORS, hypertree, encodings, a C13 variant with WOTS+C/FORS+C, concrete Keccak and SHA-2 instances, known-answer tests), so submissions start from working components rather than a blank page. The proof playbook exists too: the XMSS formalization on leanVM-b's <span class="mono">xmss-fv</span> branch carries <span class="mono">xmss_has_127_bits_of_classical_security</span>, a machine-checked 127-bit theorem for a concrete synchronized target-sum XMSS, proved over Lean's three standard axioms and nothing else (August 2026). What remains here is tooling: the canonical-form bound extraction for R2/R3, and porting the xmss-fv statement discipline into the pinned leanSPHINCS statement.</p>
+    <p>The framework question is settled: VCVio hosts the normative theorem, and its HashSig library is the scheme-definition basis. HashSig already formalizes SLH-DSA end to end (WOTS, FORS, hypertree, encodings, a C13 variant with WOTS+C/FORS+C, concrete Keccak and SHA-2 instances, known-answer tests), so submissions start from working components rather than a blank page. The proof playbook exists too: the XMSS formalization on leanVM-b's <span class="mono">xmss-fv</span> branch carries <span class="mono">xmss_has_127_bits_of_classical_security</span>, a machine-checked 127-bit theorem for a concrete synchronized target-sum XMSS, proved over Lean's three standard axioms and nothing else (August 2026). What remains here is tooling: the canonical-form bound extraction for R2/R3, and porting the xmss-fv statement discipline into the pinned leanSPHINCS statement. One gap is already known and being worked on the VCVio side: the current HashSig SLH-DSA formalization treats the hash as a concrete function rather than an oracle, and a rework aligned to the NIST spec and the EasyCrypt SLH-DSA proof is in progress on a branch.</p>
   </div>
 
   <div class="oq"><span class="oq-id">OQ-2 · Cost-vector values</span>
-    <p>The shape is settled: one virtualized RISC-V environment, three cost vectors (§5). What remains is fixing the numbers. The verification vector's per-hash, per-memory-access, and per-instruction weights need calibrating against published zkVM cost data, with a rationale per registered hash, the host pre-signing budget needs a value, and the size exponent α needs sign-off. Weights are versioned like every other rule; changes apply only to future submissions.</p>
+    <p>The shape is settled: one virtualized RISC-V environment, three cost vectors (§5). What remains is fixing the numbers. The verification vector's per-hash, per-memory-access, and per-instruction weights need calibrating against published zkVM cost data, with a rationale per registered hash, the host pre-signing budget needs a value, and the size exponent α needs sign-off. The MVP track's flat vector (§7) seeds the calibration. Weights are versioned like every other rule; changes apply only to future submissions.</p>
   </div>
 
   <div class="oq"><span class="oq-id">OQ-3 · Wallet model details</span>
@@ -562,7 +578,7 @@
   </div>
 
   <div class="oq"><span class="oq-id">OQ-5 · Scope boundaries</span>
-    <p>Pure-ROM rules technically admit exotic constructions (a STARK-based "signature" is a ROM object). V1 scopes these out via R1's structural audit: partly on principle, partly because the Lean framework cannot yet express them. A synchronized (epoch-keyed) track, which is what validators actually need, may be added once the stateless track is stable.</p>
+    <p>Largely resolved: working end to end with abstract oracles is itself the fence. Fiat–Shamir-style signatures (MPCiTH, VOLEiTH) prove knowledge of a witness for an additional hardness assumption (FAEST ties to AES, for instance), so with no concrete hash to instantiate a hard problem they cannot appear in the pure ROM, and the same holds for STARK-based signatures. R1's audit that the theorem's assumption base is oracle-only enforces this mechanically. Still open: whether to additionally require a second proof from weaker standard assumptions (collision resistance, say) alongside the ROM proof, and a synchronized (epoch-keyed) track once the stateless track is stable.</p>
   </div>
 
   <div class="oq"><span class="oq-id">OQ-6 · Signature size soft cap</span>
@@ -584,6 +600,7 @@
     <li>SPHINCS+ parameter tradeoff exploration (W+C, FORS+C, PORS+FP, octopus authentication sets, stateful comparisons). <span class="mono"><a href="https://github.com/BlockstreamResearch/SPHINCS-Parameters">BlockstreamResearch/SPHINCS-Parameters</a></span>.</li>
     <li>Reference implementation lineage: <span class="mono"><a href="https://github.com/b-wagn/hash-sig">b-wagn/hash-sig</a></span> → leanEthereum/leanSig; parameter scripts in <span class="mono">b-wagn/hashsig-parameters</span>.</li>
     <li>VCVio, a Lean 4 framework for oracle/game-based cryptographic proofs, including the HashSig library (SLH-DSA and C13 formalizations with concrete Keccak/SHA-2 instances). <span class="mono"><a href="https://github.com/Verified-zkEVM/VCVio">Verified-zkEVM/VCVio</a></span>, eprint 2026/899.</li>
+    <li>Formally verified RISC-V interpreter in Lean, extracted from the Sail specification. <span class="mono"><a href="https://github.com/Verified-zkEVM/riscv-zkvm">Verified-zkEVM/riscv-zkvm</a></span>.</li>
     <li>XMSS security formalization with the machine-checked theorem <span class="mono">xmss_has_127_bits_of_classical_security</span>. <span class="mono"><a href="https://github.com/leanEthereum/leanVM-b/tree/xmss-fv">leanEthereum/leanVM-b, branch xmss-fv</a></span>.</li>
     <li>ArkLib, verified arguments of knowledge in Lean 4. <span class="mono"><a href="https://github.com/Verified-zkEVM/ArkLib">Verified-zkEVM/ArkLib</a></span>.</li>
     <li>RISC Zero zkVM optimization guide (SHA-256 accelerator: 68 cycles / 64-byte block). <span class="mono"><a href="https://dev.risczero.com/api/zkvm/optimization">dev.risczero.com</a></span>.</li>    <li>wolfSSL crypto benchmarks on STM32 (SHA-256 ≈ 44 cycles/byte, Cortex-M33 class). <span class="mono">wolfssl.com</span>.</li>
@@ -597,7 +614,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.6 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.7 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>
