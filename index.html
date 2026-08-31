@@ -302,7 +302,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.4</strong></span>
+    <span><strong>DRAFT v0.5</strong></span>
     <span>2026-08-27</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -313,7 +313,7 @@
   <p>Ethereum's post-quantum roadmap runs on hash-based signatures. The consensus-track scheme is advancing in parallel through the leanSig line of work (Drake, Khovratovich, Kudinov, Wagner; ePrint <a href="https://eprint.iacr.org/2025/055">2025/055</a> and the follow-up <a href="https://eprint.iacr.org/2025/1332">LeanSig technical note</a>), which builds a generalized XMSS from incomparable encodings, instantiated with Poseidon2 for SNARK-friendliness. On the execution side, <a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">SPHINCS⁻</a> demonstrated the same levers this competition pulls: a traditional hash native to the verification environment (KECCAK256), signature budgets cut from 2<sup>64</sup> to 2<sup>14</sup>–2<sup>20</sup>, and WOTS+C/FORS+C compression, reaching 3.7 KB signatures verifiable on the EVM for ≈127k gas, without protocol changes. With the August 2026 pivot away from Poseidon toward traditional hash functions (SHA / BLAKE), the design space reopens: the SNARK-friendliness constraint is replaced by a zkVM cost model, and the security argument moves onto much firmer ground: a battle-tested hash modeled as a random oracle.</p>
   <p><strong>leanSPHINCS</strong> is the name of the scheme this competition exists to find, and its home is the <strong>execution layer</strong>. leanSig answers the consensus-layer question: how a million validators sign attestations every slot, in a synchronized setting where the signing epoch is part of the scheme. This competition asks the execution-layer question next to it: which signature do quantum-resistant Ethereum <em>accounts</em> use? That question has a different shape, and the constraints in this document are that shape. Statelessness is non-negotiable, because account keys cannot safely keep a counter: users restore from seed phrases and sign from several devices, and for a stateful hash-based scheme a single reused state means a broken key. Key generation and signing are budgeted on hardware-wallet-class devices, because that is where account keys actually live. Verification is priced in zkVM cycles, because execution-layer signatures will be checked inside validity proofs at scale; SPHINCS⁻ told the native-EVM version of this story, and the zkVM cost model is its continuation. The 2<sup>20</sup> lifetime and the R4 decay rule mirror real wallet usage: a million signatures outlasts almost any account, and heavy accounts degrade gracefully rather than falling off a cliff.</p>
   <p>To be explicit about scope: <strong>this competition does not pick Ethereum's consensus signature</strong>, and it does not compete with leanSig. The two run in parallel on the two layers, sharing techniques, proofs, and people. leanSPHINCS maps how far the stateless design space can be pushed under Ethereum-shaped cost models, and its outputs (schemes, formal proofs, cost frontiers, impossibility results) are evidence for everyone working on the problem, not a verdict.</p>
-  <p>The competition is an <em>autoresearch</em> competition: it is designed so that autonomous AI research agents can participate on equal footing with human cryptographers. That imposes one discipline on us, the organizers, which turns out to be a virtue: <strong>every rule must be machine-checkable</strong>. Eligibility is decided by a Lean 4 compiler and a benchmark harness, not a jury. "Close to NIST level 1" is not a Lean 4 statement, so §4 makes it one.</p>
+  <p>The competition is an <em>autoresearch</em> competition: it is designed so that autonomous AI research agents can participate on equal footing with human cryptographers. That imposes one discipline on us, the organizers, which turns out to be a virtue: <strong>every rule must be machine-checkable</strong>. Eligibility and score are decided by a Lean 4 compiler and a deterministic harness, not a jury; humans re-enter only after the leaderboard, in the review gate of §6. "Close to NIST level 1" is not a Lean 4 statement, so §4 makes it one.</p>
 </section>
 
 <section id="format">
@@ -326,7 +326,7 @@
     <li><strong>Score &amp; promotion.</strong> Computed from §3, published with the full CI log. A submission is <em>promoted</em> only if it beats the leaderboard score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier.</li>
   </ol>
   <p>Promoted submissions merge into the <strong>public frontier repository</strong>, credited to the solver <em>and</em> the model used. The competition is cumulative, not sealed: anyone may build on any promoted submission, and lemmas, proof techniques, parameter dead-ends, and impossibility results are upstreamed so later solvers, human or agent, skip them. Negative results that provably close off part of the design space (e.g. "no parameter choice in this encoding family satisfies R2+R3 below 1.2 KiB") earn credit too.</p>
-  <p>No human judgment sits in the scoring loop. Humans maintain the rules repository, the assumption registry (R7), and the harnesses, all versioned, with changes applying only to future submissions. The harness itself gets an external audit before launch and a standing bounty for rule exploits: zk.golf's post-launch harness bug, caught by an outside auditor, is the cautionary precedent.</p>
+  <p>No human judgment sits in the scoring loop; the review gate of §6 applies after it, between leaderboard and adoption. Humans maintain the rules repository, the assumption registry (R7), and the harnesses, all versioned, with changes applying only to future submissions. The harness itself gets an external audit before launch and a standing bounty for rule exploits: zk.golf's post-launch harness bug, caught by an outside auditor, is the cautionary precedent. The quality bar for this pipeline is the better.codes harness: pinned statement and parameter point, a comparator that accepts only an exactly matching exported theorem, kernel-checked proofs, credited promotion. leanSPHINCS aims to match that bar or raise it.</p>
 
   <h3><span class="secno">2.1</span>Sibling competitions, and what we take from each</h3>
   <div class="tablewrap">
@@ -364,6 +364,7 @@
     <p class="caption">signature size in bytes × verification cost in weighted RISC-V cycles under the verification vector (§5), among all submissions satisfying R1–R9</p>
   </div>
   <p>The product form reflects the deployment reality: signature bytes are paid in gossip bandwidth and data availability, verification cycles are paid in SNARK-aggregation proving cost, and the two trade off against each other throughout the design space (Winternitz parameter, tree shape, encoding choice). A scheme that wins on one axis by exploding the other should not win the competition.</p>
+  <p>The two factors are not equally durable. Proving keeps getting cheaper as zkVMs improve, while signature bytes are paid forever in bandwidth and data availability. On the long run, signature size matters more than verification time: ties break toward the smaller signature (§6), and a later rules version may weight size super-linearly instead of symmetrically.</p>
   <p>Keygen and signing times, public-key size, and security level are deliberately <em>constraints</em>, not scored dimensions: they need to be good enough, and beyond good enough, extra performance there does not help Ethereum. All optimization pressure goes to the verifier-side product.</p>
 </section>
 
@@ -374,7 +375,7 @@
   <div class="rule">
     <div class="rule-head"><span class="rid">R1</span><span class="rule-title">Scheme class</span></div>
     <p>The scheme is a <strong>stateless</strong> hash-based signature: key generation, signing, and verification are deterministic or randomized algorithms whose security reduces <em>only</em> to properties of hash functions modeled as random oracles. No algebraic assumptions. Signing keeps no state between signatures (a synchronized/epoch-based variant is a separate track; see OQ-5).</p>
-    <p>Hash instantiations must come from the allowlist: <span class="mono">SHA3-256 / SHAKE128, SHA-256, BLAKE3</span>. Internal digest lengths are the submitter's choice (but see R3's pressure toward 128-bit digests, and the zkVM word-size warning in §8).</p>
+    <p>The scheme is defined in Lean over an <strong>abstract oracle</strong> (a tweakable hash), so the construction is hash-agnostic by design. Any concrete instantiation is admissible if it is a conventional hash with no exploitable algebraic structure: SHA-2, SHA-3 / SHAKE, and BLAKE3 seed the <strong>hash registry</strong>, and further hashes join by registry PR under the same governance as R7's assumptions. Arithmetization-oriented hashes built on algebraic structure, Poseidon-style, stay out of scope. Internal digest lengths are the submitter's choice (but see R3's pressure toward 128-bit digests, and the zkVM word-size warning in §8).</p>
     <p class="check">structural audit of the Lean development: the theorem's assumption set is exactly the registered oracle properties</p>
   </div>
 
@@ -382,7 +383,7 @@
     <div class="rule-head"><span class="rid">R2</span><span class="rule-title">Security floor: 124 bits provable, classical ROM</span></div>
     <p>The submission proves, in Lean 4, a concrete EUF-CMA bound in the random-oracle model: for every adversary making at most q<sub>H</sub> hash queries and q<sub>S</sub> ≤ 2<sup>20</sup> signing queries,</p>
     <p style="text-align:center"><code>Adv(A) ≤ B(q_H, q_S)</code></p>
-    <p>where <code>B</code> is in <em>canonical form</em>: a finite sum of terms <code>c_i · q_H^{a_i} · q_S^{b_i} · 2^{-n·d_i}</code> with explicit rational constants <code>c_i</code>. Define the <strong>provable security level</strong> λ(B) as the largest λ such that B(q<sub>H</sub>, q<sub>S</sub>) ≤ q<sub>H</sub> / 2<sup>λ</sup> for all 1 ≤ q<sub>H</sub> ≤ 2<sup>λ</sup> and q<sub>S</sub> ≤ 2<sup>20</sup>. Require <strong>λ(B) ≥ 124</strong>.</p>
+    <p>where <code>B</code> is in <em>canonical form</em>: a finite sum of terms <code>c_i · q_H^{a_i} · q_S^{b_i} · 2^{-n·d_i}</code> with explicit rational constants <code>c_i</code>. Define the <strong>provable security level</strong> λ(B) as the largest λ such that B(q<sub>H</sub>, q<sub>S</sub>) ≤ q<sub>H</sub> / 2<sup>λ</sup> for all 1 ≤ q<sub>H</sub> ≤ 2<sup>λ</sup> and q<sub>S</sub> ≤ 2<sup>20</sup>. Require <strong>λ(B) ≥ 124</strong>. The floor sits deliberately below what is now known to be reachable: 127 bits are machine-checked for synchronized XMSS (OQ-1). Treat 124 as a floor, not a target.</p>
     <p class="check">bound extracted from the Lean statement; λ(B) computed mechanically by the rule auditor</p>
   </div>
 
@@ -442,6 +443,17 @@
   ...
 -- B in canonical form, e.g.
 -- B qH qS = c₁ * qH / 2^n + c₂ * qS * qH / 2^(2*n) + ...</code></pre>
+
+  <h3>Trick categories and proof templates</h3>
+  <p>The proof burden should not restart from zero for every submission. The plan: the rules repo categorizes the known SPHINCS-family optimization tricks and ships a Lean-proved security template per category, built on HashSig. Submissions declare which categories they compose and instantiate the templates; a genuinely new trick enters by contributing a new template through the same registry governance as R7. The seed taxonomy, drawing on the Blockstream Research SPHINCS-Parameters work:</p>
+  <ul>
+    <li><strong>Grinding / compression</strong>: WOTS+C, FORS+C (signer retries buy shorter signatures).</li>
+    <li><strong>Checksum elimination</strong>: target-sum Winternitz.</li>
+    <li><strong>Authentication-path compression</strong>: octopus-style multi-path batching, stripping redundant nodes across the few-time layer's Merkle openings.</li>
+    <li><strong>Few-time layer choice</strong>: FORS vs. PORS+FP.</li>
+    <li><strong>Tree shape</strong>: hypertree layering, tall cached top trees (R9's 4 KiB cache).</li>
+    <li><strong>Encodings</strong>: incomparable and hypercube encodings from the leanSig line.</li>
+  </ul>
 </section>
 
 <section id="costmodels">
@@ -461,7 +473,7 @@
   <p>The payoff is determinism. Same binary, same inputs, identical meter readings, bit for bit: scores cannot drift across harness releases, there is no physical benchmark fleet to trust, and anyone can reproduce any leaderboard entry locally. Combined with the Lean-proven |σ| and hash counts (§5.1), <strong>the entire score is a machine-checked artifact</strong>.</p>
 
   <h3><span class="secno">5.1</span>The verification vector</h3>
-  <p>Verification cost is what Ethereum pays to SNARK-aggregate signatures, so the verification weights are calibrated from published zkVM cost data rather than tied to any single zkVM release. Anchor: a production accelerator table prices SHA-256 at 68 cycles per 64-byte block (+6 init), and precompiles generally cut hashing 5–10× versus pure RV32IM. Fixing the exact weights, with a published rationale per allowlisted hash, is OQ-2.</p>
+  <p>Verification cost is what Ethereum pays to SNARK-aggregate signatures, so the verification weights are calibrated from published zkVM cost data rather than tied to any single zkVM release. Anchor: a production accelerator table prices SHA-256 at 68 cycles per 64-byte block (+6 init), and precompiles generally cut hashing 5–10× versus pure RV32IM. Fixing the exact weights, with a published rationale per registered hash, is OQ-2.</p>
   <p>For intuition: a verifier doing ~160 hash calls (the 2025/055 TSW w=2 figure) lands on the order of 10<sup>4</sup> weighted cycles plus control overhead. The competition exists to find how far below that the frontier lies, and at what signature size.</p>
   <p>Following zk.golf, the score's Lean-side inputs are <strong>proven, not measured</strong>: the serialization spec makes |σ| a Lean-computed constant, and the verifier's hash-call count is provable in the same development.</p>
 
@@ -490,8 +502,9 @@
   <ul>
     <li><strong>Score</strong> = |σ| in bytes × T<sub>verify</sub> in weighted cycles, reported as byte-cycles. Lower wins. |σ| is proven in Lean; T<sub>verify</sub> is the deterministic meter reading under the verification vector (§5), reproducible bit for bit by anyone.</li>
     <li><strong>Promotion</strong>: an eligible submission is promoted iff it beats the current best score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier. Promoted code merges into the public frontier repository under the competition license, and becomes the baseline everyone else builds on.</li>
+    <li><strong>Review gate</strong>: topping the CI leaderboard does not make a scheme <em>the</em> scheme. Automated checks decide eligibility and rank; a manual review by the organizers and the leanSig authors stands between the leaderboard and any award or adoption, to keep out submissions that satisfy the letter of the rules while missing their point. Review outcomes are published with reasons.</li>
     <li><strong>Credit</strong>: every promotion is credited to the solver <em>and</em> the model used; the leaderboard publishes the score history, improvement-per-model, and the live Pareto frontier. The rules are the same for humans and agents; that is the point of making them mechanical.</li>
-    <li><strong>Ties</strong> break by earlier submission timestamp; a re-submission resets the timestamp.</li>
+    <li><strong>Ties</strong> break toward the smaller signature first (size outlasts verification cost; §3), then by earlier submission timestamp; a re-submission resets the timestamp.</li>
     <li><strong>Reproducibility</strong>: the CI pipeline is the ground truth; anyone can re-run it. Scores are published with full logs and the exact harness commits.</li>
     <li><strong>Rules bounty</strong>: exploits of the harness, the comparator, or the rule text are in scope, credited on the leaderboard, and patched with a rules-version bump.</li>
     <li><strong>Prizes and timeline</strong>: <span class="tbd">TBD</span>.</li>
@@ -537,7 +550,7 @@
   </div>
 
   <div class="oq"><span class="oq-id">OQ-2 · Cost-vector values</span>
-    <p>The shape is settled: one virtualized RISC-V environment, three cost vectors (§5). What remains is fixing the numbers. The verification vector's per-hash, per-memory-access, and per-instruction weights need calibrating against published zkVM cost data, with a rationale per allowlisted hash, and the host pre-signing budget needs a value. Weights are versioned like every other rule; changes apply only to future submissions.</p>
+    <p>The shape is settled: one virtualized RISC-V environment, three cost vectors (§5). What remains is fixing the numbers. The verification vector's per-hash, per-memory-access, and per-instruction weights need calibrating against published zkVM cost data, with a rationale per registered hash, and the host pre-signing budget needs a value. Weights are versioned like every other rule; changes apply only to future submissions.</p>
   </div>
 
   <div class="oq"><span class="oq-id">OQ-3 · Wallet model details</span>
@@ -568,6 +581,7 @@
     <li>Drake, Khovratovich, Kudinov, Wagner. <em>Technical Note: LeanSig for Post-Quantum Ethereum</em>. <span class="mono"><a href="https://eprint.iacr.org/2025/1332">eprint 2025/1332</a></span>.</li>
     <li><em>SPHINCS minus: Efficient Stateless Post-Quantum Signature Verification on the EVM</em>, June 2026. <span class="mono"><a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">ethresear.ch/25165</a></span>.</li>
     <li><em>SPHINCS+ specification r3.1</em>, §7.1.1 ("Here, we are neglecting the small constant factors inside the logarithm.") <span class="mono"><a href="https://sphincs.org/data/sphincs+-r3.1-specification.pdf">sphincs.org</a></span>.</li>
+    <li>SPHINCS+ parameter tradeoff exploration (W+C, FORS+C, PORS+FP, octopus authentication sets, stateful comparisons). <span class="mono"><a href="https://github.com/BlockstreamResearch/SPHINCS-Parameters">BlockstreamResearch/SPHINCS-Parameters</a></span>.</li>
     <li>Reference implementation lineage: <span class="mono"><a href="https://github.com/b-wagn/hash-sig">b-wagn/hash-sig</a></span> → leanEthereum/leanSig; parameter scripts in <span class="mono">b-wagn/hashsig-parameters</span>.</li>
     <li>VCVio, a Lean 4 framework for oracle/game-based cryptographic proofs, including the HashSig library (SLH-DSA and C13 formalizations with concrete Keccak/SHA-2 instances). <span class="mono"><a href="https://github.com/Verified-zkEVM/VCVio">Verified-zkEVM/VCVio</a></span>, eprint 2026/899.</li>
     <li>XMSS security formalization with the machine-checked theorem <span class="mono">xmss_has_127_bits_of_classical_security</span>. <span class="mono"><a href="https://github.com/leanEthereum/leanVM-b/tree/xmss-fv">leanEthereum/leanVM-b, branch xmss-fv</a></span>.</li>
@@ -583,7 +597,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.4 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.5 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>
