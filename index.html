@@ -302,7 +302,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.7</strong></span>
+    <span><strong>DRAFT v0.8</strong></span>
     <span>2026-08-27</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -326,7 +326,7 @@
     <li><strong>Score &amp; promotion.</strong> Computed from §3, published with the full CI log. A submission is <em>promoted</em> only if it beats the leaderboard score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier.</li>
   </ol>
   <p>Promoted submissions merge into the <strong>public frontier repository</strong>, credited to the solver <em>and</em> the model used. The competition is cumulative, not sealed: anyone may build on any promoted submission, and lemmas, proof techniques, parameter dead-ends, and impossibility results are upstreamed so later solvers, human or agent, skip them. Negative results that provably close off part of the design space (e.g. "no parameter choice in this encoding family satisfies R2+R3 below 1.2 KiB") earn credit too.</p>
-  <p>No human judgment sits in the scoring loop; the review gate of §6 applies after it, between leaderboard and adoption. Humans maintain the rules repository, the assumption registry (R7), and the harnesses, all versioned, with changes applying only to future submissions. The harness itself gets an external audit before launch and a standing bounty for rule exploits: zk.golf's post-launch harness bug, caught by an outside auditor, is the cautionary precedent. The quality bar for this pipeline is the better.codes harness: pinned statement and parameter point, a comparator that accepts only an exactly matching exported theorem, kernel-checked proofs, credited promotion. leanSPHINCS aims to match that bar or raise it.</p>
+  <p>No human judgment sits in the scoring loop; the review gate of §6 applies after it, between leaderboard and adoption. Humans maintain the rules repository, the assumption registry (R7), and the harnesses, all versioned, with changes applying only to future submissions. The harness itself gets an external audit before launch and a standing bounty for rule exploits: zk.golf's post-launch harness bug, caught by an outside auditor, is the cautionary precedent. The quality bar for this pipeline is the better.codes harness: pinned statement and parameter point, a comparator that accepts only an exactly matching exported theorem, kernel-checked proofs, credited promotion. leanSPHINCS aims to match that bar or raise it. That harness is public and directly reusable: protected target modules, a comparator with a permitted-axiom list, flat size-limited submission roots, in-repo editable baselines, agent-facing instructions, and a rejection explainer.</p>
 
   <h3><span class="secno">2.1</span>Sibling competitions, and what we take from each</h3>
   <div class="tablewrap">
@@ -477,6 +477,7 @@
   <h3><span class="secno">5.1</span>The verification vector</h3>
   <p>Verification cost is what Ethereum pays to SNARK-aggregate signatures, so the verification weights are calibrated from published zkVM cost data rather than tied to any single zkVM release. Anchor: a production accelerator table prices SHA-256 at 68 cycles per 64-byte block (+6 init), and precompiles generally cut hashing 5–10× versus pure RV32IM. Fixing the exact weights, with a published rationale per registered hash, is OQ-2.</p>
   <p>For intuition: a verifier doing ~160 hash calls (the 2025/055 TSW w=2 figure) lands on the order of 10<sup>4</sup> weighted cycles plus control overhead. The competition exists to find how far below that the frontier lies, and at what signature size.</p>
+  <p>The verify-stage hash meter double-reports as the <strong>EVM gas proxy</strong>: if the winning scheme is ever verified natively on the execution layer, SPHINCS⁻-style, its gas cost is priced almost entirely by hash opcodes, so the same proven number serves both deployment stories without a second benchmark.</p>
   <p>Following zk.golf, the score's Lean-side inputs are <strong>proven, not measured</strong>: the serialization spec makes |σ| a Lean-computed constant, and the verifier's hash-call count is provable in the same development.</p>
 
   <h3><span class="secno">5.2</span>The wallet vector (secret path)</h3>
@@ -503,6 +504,7 @@
   <h2><span class="secno">6</span>Scoring, submissions, leaderboard</h2>
   <ul>
     <li><strong>Score</strong> = |σ|<sup>α</sup> × T<sub>verify</sub>, with |σ| in bytes, T<sub>verify</sub> in weighted cycles, and <span class="tbd">α = 1.25</span>. Lower wins. |σ| is proven in Lean; T<sub>verify</sub> is the deterministic meter reading under the verification vector (§5), reproducible bit for bit by anyone.</li>
+    <li><strong>Metrics panel</strong>: one number ranks, many numbers inform. Every entry also reports |σ| in bytes, T<sub>verify</sub> in weighted cycles, and the per-stage hash-call counts: verify hashes (the EVM gas proxy; native execution-layer verification is priced almost entirely by its hash opcodes), sign hashes and keygen hashes (the wallet-time proxies gated by R9), plus the signer RAM high-water mark. All of these fall out of the §5 meters, and the hash counts are Lean-proven.</li>
     <li><strong>Promotion</strong>: an eligible submission is promoted iff it beats the current best score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier. Promoted code merges into the public frontier repository under the competition license, and becomes the baseline everyone else builds on.</li>
     <li><strong>Review gate</strong>: topping the CI leaderboard does not make a scheme <em>the</em> scheme. Automated checks decide eligibility and rank; a manual review by the organizers and the leanSig authors stands between the leaderboard and any award or adoption, to keep out submissions that satisfy the letter of the rules while missing their point. Review outcomes are published with reasons.</li>
     <li><strong>Credit</strong>: every promotion is credited to the solver <em>and</em> the model used; the leaderboard publishes the score history, improvement-per-model, and the live Pareto frontier. The rules are the same for humans and agents; that is the point of making them mechanical.</li>
@@ -608,13 +610,14 @@
     <li>discv5 wire protocol (1280-byte packet cap). <span class="mono"><a href="https://github.com/ethereum/devp2p/blob/master/discv5/discv5-wire.md">devp2p/discv5</a></span>.</li>
     <li>Announcement of the pivot from Poseidon to SHA/BLAKE, J. Drake, Aug 2026. <span class="mono"><a href="https://x.com/drakefjustin/status/2087905684180418733">x.com/drakefjustin</a></span>.</li>
     <li><em>Raising machine-checked security benchmarks to advance hash-based SNARKs through agentic collaboration</em> (better.codes launch), EF Blog, Aug 2026. <span class="mono"><a href="https://blog.ethereum.org/en/2026/08/20/better-codes-challenge">blog.ethereum.org</a></span>.</li>
+    <li>The better.codes / Proximity Prize challenge harness: protected targets, comparator with permitted axioms, verdict gate, agent instructions. <span class="mono"><a href="https://github.com/proximity-prize/proximity-prize">proximity-prize/proximity-prize</a></span>.</li>
     <li><em>zk.golf: Fearless and Collaborative Optimization of Circuits</em>. <span class="mono"><a href="https://blog.zksecurity.xyz/posts/zkgolf/">blog post</a></span>; site: <span class="mono"><a href="https://zk.golf">zk.golf</a></span>.</li>
     <li>Sibling autoresearch challenges: <span class="mono"><a href="https://ecdsa.fail">ecdsa.fail</a></span>, <span class="mono"><a href="https://snark.fast">snark.fast</a></span>.</li>
   </ol>
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.7 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.8 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>
