@@ -302,7 +302,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.9</strong></span>
+    <span><strong>DRAFT v0.10</strong></span>
     <span>2026-08-27</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -365,6 +365,7 @@
   </div>
   <p>The product form reflects the deployment reality: signature bytes are paid in gossip bandwidth and data availability, verification cycles are paid in SNARK-aggregation proving cost, and the two trade off against each other throughout the design space (Winternitz parameter, tree shape, encoding choice). A scheme that wins on one axis by exploding the other should not win the competition.</p>
   <p>The two factors are not equally durable. Proving keeps getting cheaper as zkVMs improve, while signature bytes are paid forever in bandwidth and data availability. On the long run, signature size matters more than verification time, and the score encodes this rather than deferring it: size enters super-linearly with exponent <span class="tbd">α = 1.25</span>, so a 1% saving in bytes outweighs a 1% saving in cycles. Ties still break toward the smaller signature (§6), and α is a versioned rules constant like the cost-vector weights (OQ-2).</p>
+  <p>There is also a <strong>theory view</strong> of the same data. One camp's interest in this competition is architectural: after SPHINCS, SPHINCS+, top-of-the-hypercube WOTS, PORS, what structure comes next? For that question the right cost model is the purest one: count compression calls and nothing else. In this framework that is simply the (1, 0, 0) vector over the §5 meters, so it comes for free, and the leaderboard re-ranks under it (§6). One guard is needed: with instructions and memory free, unbounded non-hash computation at verification would be free too, so the pure-count view keeps a loose cycle sanity cap instead of a scored cycle term. Which vector scores the MVP is OQ-8. The deeper point stands either way: once the architectures exist, choosing the right cost function is itself a research question, which is why every entry publishes its raw meters rather than only its score.</p>
   <p>Keygen and signing times, public-key size, and security level are deliberately <em>constraints</em>, not scored dimensions: they need to be good enough, and beyond good enough, extra performance there does not help Ethereum. All optimization pressure goes to the verifier-side product.</p>
 </section>
 
@@ -506,6 +507,7 @@
   <ul>
     <li><strong>Score</strong> = |σ|<sup>α</sup> × T<sub>verify</sub>, with |σ| in bytes, T<sub>verify</sub> in weighted cycles, and <span class="tbd">α = 1.25</span>. Lower wins. |σ| is proven in Lean; T<sub>verify</sub> is the deterministic meter reading under the verification vector (§5), reproducible bit for bit by anyone.</li>
     <li><strong>Metrics panel</strong>: one number ranks, many numbers inform. Every entry also reports |σ| in bytes, T<sub>verify</sub> in weighted cycles, and the per-stage hash-call counts: verify hashes (the gas proxy for today's EVM, where hash opcodes dominate the price), verify gas under the native RISC-V vector (one cycle, one gas; §5), sign hashes and keygen hashes (the wallet-time proxies gated by R9), plus the signer RAM high-water mark. All of these fall out of the §5 meters, and the hash counts are Lean-proven.</li>
+    <li><strong>Re-rankable</strong>: every entry stores its raw meter readings, so the board can be re-sorted under any cost vector: the default score, pure compression count (the theory view of §3), native RISC-V gas, or custom weights. The default ranking is what prizes attach to; the other views exist because choosing the cost function is itself part of the research question.</li>
     <li><strong>Promotion</strong>: an eligible submission is promoted iff it beats the current best score or improves the (|σ|, T<sub>verify</sub>) Pareto frontier. Promoted code merges into the public frontier repository under the competition license, and becomes the baseline everyone else builds on.</li>
     <li><strong>Review gate</strong>: topping the CI leaderboard does not make a scheme <em>the</em> scheme. Automated checks decide eligibility and rank; a manual review by the organizers and the leanSig authors stands between the leaderboard and any award or adoption, to keep out submissions that satisfy the letter of the rules while missing their point. Review outcomes are published with reasons.</li>
     <li><strong>Credit</strong>: every promotion is credited to the solver <em>and</em> the model used; the leaderboard publishes the score history, improvement-per-model, and the live Pareto frontier. The rules are the same for humans and agents; that is the point of making them mechanical.</li>
@@ -591,6 +593,10 @@
   <div class="oq"><span class="oq-id">OQ-7 · Expert review</span>
     <p>R2/R3 thresholds (124/128) and the registry seed need sign-off from the leanSig authors, pending Benedikt's return from vacation. Emile's attack (SPHINCS+ level 1 below 128 provable) should be written up and cited as the motivating example for why R2 ≠ 128. The xmss-fv result, 127 machine-checked bits for synchronized XMSS, adds a fresh question for that review: whether the R2 floor should move from 124 toward 127.</p>
   </div>
+
+  <div class="oq"><span class="oq-id">OQ-8 · The MVP scoring vector</span>
+    <p>Two proposals from the group. Flat cycles (1 per instruction, ~10 per oracle call, ~100 per memory call): prices engineering reality, keeps glue code honest, matches how a zkVM or a RISC-V execution layer would actually pay. Pure compression count (the (1, 0, 0) theory view, with a sanity cycle cap): isolates the architectural question from low-level constant-tuning, on the argument that the interesting output is the next architecture, not parameters overfit to one cost function. Since the leaderboard re-ranks under both (§6), the choice only decides which number the prize follows.</p>
+  </div>
 </section>
 
 <section id="refs">
@@ -618,7 +624,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.9 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.10 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>
