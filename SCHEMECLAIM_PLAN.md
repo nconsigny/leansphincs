@@ -25,7 +25,7 @@ New challenge repo, skeleton forked from `proximity-prize/proximity-prize`:
 ```
 LeanSphincs/
   Benchmark/                  -- protected: submissions may import, never modify
-    Oracle.lean               -- the MVP oracle: ideal compression function as an OracleSpec
+    Oracle.lean               -- the MVP oracle: N B → 32 B ideal compression function as an OracleSpec
     SchemeInterface.lean      -- SigScheme: types, keygen/sign/verify in OracleComp, serialization
     Game.lean                 -- EUF-CMA / SUF experiment, adversary type, query accounting
     Bound.lean                -- canonical-form bounds: coefficient lists, evalBound, bitSecurity (decidable)
@@ -50,7 +50,7 @@ structure SchemeClaim (S : SigScheme oracleSpec)
   verify_queries : IsQueryBound S.verify hVerify
   security       : ∀ (A : Adversary oracleSpec) (qH : Nat),
                      A.queries ≤ qH → A.sigQueries ≤ 2 ^ 20 →
-                     eufAdvantage S A ≤ evalBound coeffs qH (2 ^ 20)
+                     sufAdvantage S A ≤ evalBound coeffs qH (2 ^ 20)
   floor          : 124 ≤ bitSecurity coeffs (2 ^ 20)   -- closes by decide / norm_num
 ```
 
@@ -67,7 +67,7 @@ Notes:
 **Phase 1, parallel.**
 
 - **WS1 — HashSig oracle-ization (library track; Quang and Alex's work).** Generalize the `Primitives` bundle so hash fields are monadic (`Thash : PkSeed → AdrsKey → List Y → m Y`), with the existing deterministic layer as the `Id` instantiation and a ROM instantiation over `OracleComp`. Existing concrete instances and KATs must keep compiling. Deliverable: WOTS/XMSS/FORS/hypertree components usable inside a `SigScheme`. Coordinate with the NIST + EasyCrypt-aligned rework already in progress; this plan should not duplicate that branch.
-- **WS2 — Benchmark core (`Oracle`, `SchemeInterface`, `Game`).** Port the xmss-fv Statement.lean shapes from concrete-XMSS to scheme-parametric. Main design questions to settle in review: SUF (as xmss-fv proves) versus plain EUF-CMA; fixed 96 B → 32 B oracle versus N → 32 B with declared arity.
+- **WS2 — Benchmark core (`Oracle`, `SchemeInterface`, `Game`).** Port the xmss-fv Statement.lean shapes from concrete-XMSS to scheme-parametric. Decided (2026-09-02): SUF-CMA, and an N B → 32 B oracle with variable-length input; calls are weighted by input length in 32-byte blocks for the score, and the exact block convention is pinned here.
 - **WS3 — `Bound.lean`.** Standalone and small: coefficient lists, `evalBound`, `bitSecurity` as a computable function with `decide`-friendly lemmas, `#guard` unit tests. No dependencies on WS1/WS2; a good first PR.
 
 **Phase 2, after WS2 + WS3.**
@@ -79,13 +79,13 @@ Notes:
 
 - **WS6 — Baseline #0.** A full worked submission by the organizers: a stateless SLH-DSA-style instance built from WS1 components (C13-flavored if ready, a plain small hypertree if not), its `SchemeClaim` proof, and its declared metrics. This is the schedule risk: the security proof is the heavy half. Two mitigations: start from the xmss-fv proof spine (its cache-replay and query-accounting lemmas transfer), and if needed launch with a reduced-parameter instance whose bound closes quickly, upgrading the baseline after launch. The leaderboard needs one honest entry, not a record.
 
-## Decisions to close before WS4 freezes the statement
+## Decisions (closed 2026-09-02 unless noted)
 
-1. SUF or EUF-CMA as the pinned notion (xmss-fv precedent says SUF).
-2. Oracle arity: fixed 96 B → 32 B or N B → 32 B with cost-by-N (spec section 7, item 3).
-3. `sigma_size` as equality or upper bound (equality is cleaner for the comparator; padding makes it harmless).
-4. MVP floor stays 124 or moves toward 127 (spec OQ-7, with Benedikt).
-5. Where the challenge repo lives and who holds the protected-module merge rights.
+1. **SUF-CMA** is the pinned notion (matches the xmss-fv precedent).
+2. **N B → 32 B oracle** with variable-length input; a fixed 96 B → 32 B would tailor the model to SHA-2. Score weight per call = input length in 32-byte blocks; the exact block convention (N versus N − 1 chaining units) is pinned in WS2.
+3. **`sigma_size` is an equality**; fixed-length serialization, pad if needed.
+4. **Floor stays at 124** for the MVP; 127 remains the full-track ambition (spec OQ-7).
+5. Repo home and protected-module merge rights: **deferred**, to be settled before anyone submits.
 
 ## What this plan deliberately leaves out
 

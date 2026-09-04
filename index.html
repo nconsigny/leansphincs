@@ -302,7 +302,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.11</strong></span>
+    <span><strong>DRAFT v0.12</strong></span>
     <span>2026-08-27</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -382,7 +382,7 @@
 
   <div class="rule">
     <div class="rule-head"><span class="rid">R2</span><span class="rule-title">Security floor: 124 bits provable, classical ROM</span></div>
-    <p>The submission proves, in Lean 4, a concrete EUF-CMA bound in the random-oracle model: for every adversary making at most q<sub>H</sub> hash queries and q<sub>S</sub> ≤ 2<sup>20</sup> signing queries,</p>
+    <p>The submission proves, in Lean 4, a concrete SUF-CMA bound in the random-oracle model (strong unforgeability: the adversary must not produce any new valid signature, even for a message that was already signed): for every adversary making at most q<sub>H</sub> hash queries and q<sub>S</sub> ≤ 2<sup>20</sup> signing queries,</p>
     <p style="text-align:center"><code>Adv(A) ≤ B(q_H, q_S)</code></p>
     <p>where <code>B</code> is in <em>canonical form</em>: a finite sum of terms <code>c_i · q_H^{a_i} · q_S^{b_i} · 2^{-n·d_i}</code> with explicit rational constants <code>c_i</code>. Define the <strong>provable security level</strong> λ(B) as the largest λ such that B(q<sub>H</sub>, q<sub>S</sub>) ≤ q<sub>H</sub> / 2<sup>λ</sup> for all 1 ≤ q<sub>H</sub> ≤ 2<sup>λ</sup> and q<sub>S</sub> ≤ 2<sup>20</sup>. Require <strong>λ(B) ≥ 124</strong>. The floor sits deliberately below what is now known to be reachable: 127 bits are machine-checked for synchronized XMSS (OQ-1). Treat 124 as a floor, not a target.</p>
     <p class="check">bound extracted from the Lean statement; λ(B) computed mechanically by the rule auditor</p>
@@ -438,9 +438,9 @@
 
   <h3>The required theorem, in shape</h3>
   <p>Illustrative only; the normative Lean statement lives in the rules repo:</p>
-  <pre><code>theorem leanSPHINCS_euf_cma
+  <pre><code>theorem leanSPHINCS_suf_cma
     (A : Adversary) (hH : A.queriesH ≤ qH) (hS : A.queriesS ≤ 2^20) :
-    eufCmaAdvantage SIG A ≤ B qH A.queriesS := by
+    sufCmaAdvantage SIG A ≤ B qH A.queriesS := by
   ...
 -- B in canonical form, e.g.
 -- B qH qS = c₁ * qH / 2^n + c₂ * qS * qH / 2^(2*n) + ...</code></pre>
@@ -460,7 +460,7 @@
 <section id="costmodels">
   <h2><span class="secno">5</span>Cost model (normative): one machine, three vectors</h2>
 
-  <p>Every stage of the pipeline can run on RISC-V: zkVMs execute RISC-V already, wallet-class MCUs are well modeled by it, and the untrusted host is an ordinary CPU. The competition exploits this. All stages of the reference implementation execute in a single <strong>fully virtualized RISC-V environment</strong> that keeps three separate meters: hash-precompile calls (per 64-byte block), memory accesses (loads and stores), and all other executed instructions. A deployment surface is then just a <em>cost vector</em> over those meters, plus resource caps.</p>
+  <p>Every stage of the pipeline can run on RISC-V: zkVMs execute RISC-V already, wallet-class MCUs are well modeled by it, and the untrusted host is an ordinary CPU. The competition exploits this. All stages of the reference implementation execute in a single <strong>fully virtualized RISC-V environment</strong> that keeps three separate meters: oracle calls (weighted by input length in blocks), memory accesses (loads and stores), and all other executed instructions. A deployment surface is then just a <em>cost vector</em> over those meters, plus resource caps.</p>
 
   <div class="tablewrap">
   <table>
@@ -525,7 +525,7 @@
   <ol>
     <li><strong>128-bit ROM only.</strong> No QROM statement, no standard-model side conditions, and no decay requirement past the lifetime (R4 is suspended in this track).</li>
     <li><strong>Everything virtual.</strong> All stages run in the §5 environment; no physical devices anywhere.</li>
-    <li><strong>One oracle, no named hash.</strong> The only primitive is a blackbox random oracle modeling an ideal compression function, 96 B → 32 B; the hash registry is unused. A refinement under discussion: an N B → 32 B oracle whose cycle cost grows with N.</li>
+    <li><strong>One oracle, no named hash.</strong> The only primitive is a blackbox random oracle modeling an ideal compression function with variable-length input, <strong>N B → 32 B</strong> (a fixed 96 B → 32 B would have tailored the model to SHA-2); the hash registry is unused. For the score, a call is weighted by its input length in 32-byte blocks, so a long input cannot be hashed for the price of one call; the exact block convention is <span class="tbd">to be pinned</span> in the statement.</li>
     <li><strong>Flat cost vector.</strong> Every RISC-V instruction costs 1 cycle, an oracle call costs <span class="tbd">10</span>, a memory call costs <span class="tbd">100</span> (numbers to be fixed). This vector prices the reported views and the sanity cap; the score counts only oracle calls (item 6).</li>
     <li><strong>No hardening.</strong> Side channels and fault injection are out of scope.</li>
     <li><strong>Plain spacetime.</strong> Score = |σ| × H<sub>verify</sub>, signature bytes times verification compression calls, the simple product; the α exponent of §3 joins in the full track.</li>
@@ -625,7 +625,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.11 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.12 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>
