@@ -1,6 +1,24 @@
 # SchemeClaim: build plan for the leanSPHINCS statement layer
 
-Status: draft for team review, 2026-09-02. Companion to the [competition spec](https://nconsigny.github.io/leansphincs/), sections 4, 7 and OQ-1/OQ-8.
+Status: draft for team review, 2026-09-02; local implementation progress added 2026-09-06. Companion to the [competition spec](https://nconsigny.github.io/leansphincs/), sections 4, 7 and OQ-1/OQ-8.
+
+## Local implementation progress (2026-09-06)
+
+2026-09-07 harness advance: per-run source capture and isolated build outputs,
+read-only protected/dependency caches, mandatory Linux sandbox probes and
+content-bound receipts are implemented. All four real `SchemeClaim` rejection
+cases and all five metric-only canaries pass in the strict Linux profile; 22
+host tests pass. See [HARNESS_SECURITY.md](HARNESS_SECURITY.md).
+This advances WS5 without claiming baseline #0, external audit, registration or
+production freeze is complete.
+
+WS2, WS3 and WS4 now have a staged implementation in this checkout, documented in [IMPLEMENTATION.md](IMPLEMENTATION.md). The protected Lean library builds on Lean 4.31.0 / VCVio `cbd4144b51d92da00dd50f05e068b2348fa6e529`; its axiom audit admits only the three standard axioms. The exact rational floor predicate has a proved two-endpoint characterization. The comparator has one scheme-definition hole and binds all three declared metric files. Organizer canaries exercise successful matching, rejection of each changed metric, and forbidden-axiom rejection; they are not baseline #0.
+
+Verified again on 2026-09-07 after the previous session was cut off: the protected library builds, the axiom audit passes, the ten host-side contract tests pass, the signing-failure regression fixtures (always-failing signer rejected, invalid successful output rejected, failed requests charged to the signing budget, `none` never counts as replay) compile, the five comparator canary fixtures were recreated for the `Option Bytes` signing interface and all five real-comparator runs return the expected verdicts, and the PR #19 126-bit endpoint was reproduced locally with a standard-axiom footprint (see PR19_REVIEW.md). A `LeanSphincsTest.lean` root now lets `lake build LeanSphincsTest` succeed. This work is still uncommitted in the checkout.
+
+The staged WS2 block convention is `max(1, ceil(inputBytes / 32))`, charging all supplied bytes, including domain separation. This is an implementation decision for review before freeze. The public spec remains v0.12 on its existing publish targets; it has not been edited by this implementation pass. Repo home and merge rights remain deferred.
+
+[leanVM-b PR #19](https://github.com/leanEthereum/leanVM-b/pull/19) supplies an additional, directly relevant stateless SUF-CMA proof route: a public 126-bit statement at 2²⁴ signing requests, with the same whole-experiment ROM accounting. See [PR19_REVIEW.md](PR19_REVIEW.md). It can shorten WS6 without waiting for WS1, but needs serialization, game/cap transport and block-weighted verification proofs. Its signer returns `Option Signature` after bounded grinding. Following discussion with Emile and organizer approval on 2026-09-06, the staged contract now admits explicit signing failure, with separate correctness-on-success and failure-probability ≤ 2⁻¹²⁸ obligations. This is a per-fixed-message, fresh-key/shared-ROM gate, not an adaptive lifetime guarantee. Baseline transport and production validation remain; the contract is not yet frozen for submissions.
 
 ## What we are building
 
@@ -40,26 +58,31 @@ LeanSphincs/
 
 ## The claim, in shape
 
-Illustrative; the normative version is the deliverable of WS4.
+Illustrative summary; the normative version is now `LeanSphincs/Benchmark/Claim.lean`.
 
 ```lean
-structure SchemeClaim (S : SigScheme oracleSpec)
+structure SchemeClaim (S : SigScheme)
     (sigmaBytes hVerify : Nat) (coeffs : BoundCoeffs) : Prop where
-  correct        : PerfectlyCorrect S
-  sigma_size     : SerializedSize S = sigmaBytes
-  verify_queries : IsQueryBound S.verify hVerify
-  security       : ∀ (A : Adversary oracleSpec) (qH : Nat),
-                     A.queries ≤ qH → A.sigQueries ≤ 2 ^ 20 →
-                     sufAdvantage S A ≤ evalBound coeffs qH (2 ^ 20)
-  floor          : 124 ≤ bitSecurity coeffs (2 ^ 20)   -- closes by decide / norm_num
+  correct        : CorrectOnSuccess S
+  signing_failure : HasSigningFailureBound S 128
+  sigma_positive : 0 < sigmaBytes
+  sigma_size     : HasSignatureSize S sigmaBytes
+  public_key_size : HasPublicKeySize S 64
+  hverify_positive : 0 < hVerify
+  verify_queries : HasVerificationBound S hVerify
+  security       : ∀ (A : Adversary) (qH : Nat),
+                     HasHashQueryBound S A qH → HasSigningQueryBound A (2 ^ 20) →
+                     sufAdvantage S A ≤ boundProbability coeffs qH (2 ^ 20)
+  floor          : MeetsFloor coeffs (2 ^ 20) 124   -- rational certificate via norm_num
 ```
 
 Notes:
 
-- **The game and oracle come from the protected module.** The import checker (reused from proximity-prize) admits only `Mathlib`, `VCVio`, `HashSig`, and `LeanSphincs.Benchmark` from a submission root, so the only thing a submission can contribute is `S` and the proof.
+- **The game and oracle come from the protected module.** The import checker admits only `Mathlib`, `VCVio`, `HashSig`, the protected `LeanSphincs.Benchmark.Target`, and flat local helpers. The comparator leaves only `S` as a definition hole; the statement and all metrics must match.
 - **Every scored quantity is certified in-Lean.** `sigma_size` via the byte-exact serialization spec; `verify_queries` via VCVio's query-bound machinery (`HashSig` already ships `GeneralSchemeQueryBound.lean`, and xmss-fv counts queries across a whole experiment); `floor` as a decidable predicate over declared coefficients. The rule auditor planned in spec OQ-1 as external tooling disappears into the claim structure.
-- **Oracle-only by type.** A scheme is a `SigScheme oracleSpec`: its algorithms live in `OracleComp oracleSpec`, so MPCiTH-style constructions needing a concrete hard problem cannot even be stated (spec R1/OQ-5, enforced by the type checker rather than an audit).
+- **Oracle access by type.** A scheme's algorithms live in the protected `OracleComp` interface. This prevents unmodelled oracle/IO effects, but arbitrary pure computations remain expressible. The unconditional ROM proof, axiom check and rule review enforce the stronger restriction against extra cryptographic assumptions; the type alone is not a complete construction classifier.
 - **Statelessness by type.** The game re-runs `sign` from `(sk, msg)` on every signing query; there is no state slot to thread.
+- **Availability is separate from security.** Signing returns `Option Bytes`; successful output must verify with probability one, and for each fixed message fresh key generation and signing must return `none` with probability at most 2⁻¹²⁸. Failed responses remain visible and consume query budget; only successful message/signature pairs count as replay. Exact size applies to successful outputs. A 2⁻²⁵⁶ failure certificate is stronger and also accepted.
 - MVP simplifications applied (spec section 7): single oracle, q_S ≤ 2^20 only (no decay clause), plain floor at 124, score computed by the harness from the declared `sigma.txt` and `hverify.txt` that the theorem certifies.
 
 ## Workstreams
@@ -86,7 +109,8 @@ Notes:
 3. **`sigma_size` is an equality**; fixed-length serialization, pad if needed.
 4. **Floor stays at 124** for the MVP; 127 remains the full-track ambition (spec OQ-7).
 5. Repo home and protected-module merge rights: **deferred**, to be settled before anyone submits.
+6. **Bounded signing failure** (2026-09-06): explicit `none`, correctness on success, and a separate `Pr[none] ≤ 2⁻¹²⁸` theorem per fixed message under fresh key generation and a shared ROM. Stronger bounds such as 2⁻²⁵⁶ qualify. This does not change the 124-bit security floor or add a scored metric. Synchronizing this addition to both published spec targets remains pending.
 
 ## What this plan deliberately leaves out
 
-The RISC-V metering environment (views and the sanity cycle cap) is not needed for the scored leaderboard and is tracked separately; until it lands, the sanity cap is policed by the review gate (spec section 6). Wallet-vector gating, the presign and cache game clauses, and the trick-template library are full-track work that layers onto the same `SchemeClaim` without changing its shape.
+The RISC-V metering environment (views and the sanity cycle cap) is tracked separately; the current MVP harness does not certify a cycle cap. Wallet-vector gating, presign/cache game clauses and the trick-template library are full-track work requiring a versioned protected claim and review. They must not be advertised as enforced by the present MVP statement.

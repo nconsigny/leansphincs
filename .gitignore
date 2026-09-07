@@ -1,0 +1,6 @@
+.lake/
+.benchmark-tools/
+benchmark-results/
+LeanSphincs/Benchmark/Challenge.lean
+LeanSphincs/Submission/
+__pycache__/
