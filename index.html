@@ -302,8 +302,8 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.12</strong></span>
-    <span>2026-08-27</span>
+    <span><strong>DRAFT v0.13</strong></span>
+    <span>2026-09-07</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
 </header>
@@ -382,7 +382,7 @@
 
   <div class="rule">
     <div class="rule-head"><span class="rid">R2</span><span class="rule-title">Security floor: 124 bits provable, classical ROM</span></div>
-    <p>The submission proves, in Lean 4, a concrete SUF-CMA bound in the random-oracle model (strong unforgeability: the adversary must not produce any new valid signature, even for a message that was already signed): for every adversary making at most q<sub>H</sub> hash queries and q<sub>S</sub> ≤ 2<sup>20</sup> signing queries,</p>
+    <p>The submission proves, in Lean 4, a concrete SUF-CMA bound in the random-oracle model (strong unforgeability: the adversary must not produce any new valid signature, even for a message that was already signed): for every adversary making at most q<sub>H</sub> hash queries and q<sub>S</sub> ≤ 2<sup>20</sup> signing queries (failed signing requests count toward q<sub>S</sub>; see R8),</p>
     <p style="text-align:center"><code>Adv(A) ≤ B(q_H, q_S)</code></p>
     <p>where <code>B</code> is in <em>canonical form</em>: a finite sum of terms <code>c_i · q_H^{a_i} · q_S^{b_i} · 2^{-n·d_i}</code> with explicit rational constants <code>c_i</code>. Define the <strong>provable security level</strong> λ(B) as the largest λ such that B(q<sub>H</sub>, q<sub>S</sub>) ≤ q<sub>H</sub> / 2<sup>λ</sup> for all 1 ≤ q<sub>H</sub> ≤ 2<sup>λ</sup> and q<sub>S</sub> ≤ 2<sup>20</sup>. Require <strong>λ(B) ≥ 124</strong>. The floor sits deliberately below what is now known to be reachable: 127 bits are machine-checked for synchronized XMSS (OQ-1). Treat 124 as a floor, not a target.</p>
     <p class="check">bound extracted from the Lean statement; λ(B) computed mechanically by the rule auditor</p>
@@ -426,7 +426,7 @@
 
   <div class="rule">
     <div class="rule-head"><span class="rid">R8</span><span class="rule-title">Interface conformance</span></div>
-    <p>Fixed API: <code>keygen(seed) → (pk, sk, cache)</code>, <code>sign(sk, cache, msg) → σ</code>, <code>verify(pk, msg, σ) → bool</code>, plus an optional non-secret <code>presign</code> stage (§5.3). Both auxiliary channels are folded into the R2 game rather than trusted: the <code>presign</code> transcript is adversary-visible, and the <code>cache</code> is adversary-<em>replaceable</em> (R9, §5.2). Messages are 32 bytes (the protocol signs digests), verification is deterministic, serialization is byte-exact. The reference implementation is Rust targeting the virtual RISC-V environment, <code>no_std</code> for the wallet-side stages.</p>
+    <p>Fixed API: <code>keygen(seed) → (pk, sk, cache)</code>, <code>sign(sk, cache, msg) → σ or ⊥</code>, <code>verify(pk, msg, σ) → bool</code>, plus an optional non-secret <code>presign</code> stage (§5.3). Signing may <strong>explicitly fail</strong> (return ⊥): bounded-attempt grinding, target-sum encodings and similar tricks need a way to give up honestly rather than emit an invalid signature or loop forever. The claim therefore carries two separate obligations. Correctness on success: every signature that <code>sign</code> does return verifies with probability one. Availability: for each fixed message, over fresh key generation, the signer's randomness and their shared oracle, the probability of failure is at most 2<sup>−128</sup>; a stronger certificate such as 2<sup>−256</sup> qualifies. This is a per-message, fresh-key gate, not an adaptive lifetime-availability guarantee; it does not move the 124-bit floor and adds no scored metric. In the R2 game a failed request is visible to the adversary and consumes signing budget like any other, only a successful message-signature pair can count as a replay, and the exact-size claim covers successful outputs. Both auxiliary channels are folded into the R2 game rather than trusted: the <code>presign</code> transcript is adversary-visible, and the <code>cache</code> is adversary-<em>replaceable</em> (R9, §5.2). Messages are 32 bytes (the protocol signs digests), verification is deterministic, serialization is byte-exact. The reference implementation is Rust targeting the virtual RISC-V environment, <code>no_std</code> for the wallet-side stages.</p>
     <p class="check">conformance test vectors in the harness</p>
   </div>
 
@@ -443,7 +443,8 @@
     sufCmaAdvantage SIG A ≤ B qH A.queriesS := by
   ...
 -- B in canonical form, e.g.
--- B qH qS = c₁ * qH / 2^n + c₂ * qS * qH / 2^(2*n) + ...</code></pre>
+-- B qH qS = c₁ * qH / 2^n + c₂ * qS * qH / 2^(2*n) + ...
+-- alongside: correctness on success, and Pr[sign = ⊥] ≤ 2^-128 per message (R8)</code></pre>
 
   <h3>Trick categories and proof templates</h3>
   <p>The proof burden should not restart from zero for every submission. The plan: the rules repo categorizes the known SPHINCS-family optimization tricks and ships a Lean-proved security template per category, built on HashSig. Submissions declare which categories they compose and instantiate the templates; a genuinely new trick enters by contributing a new template through the same registry governance as R7. The seed taxonomy, drawing on the Blockstream Research SPHINCS-Parameters work:</p>
@@ -556,7 +557,7 @@
     <li><strong>Encodings.</strong> Target-sum Winternitz kills the checksum chains; incomparable encodings generalize; the hypercube / top-layer encodings of 2025/1332 buy signature size at the same security. The encoding is the highest-leverage free variable.</li>
     <li><strong>Chain-count margin.</strong> There is a known (unpublished) attack putting standardized SPHINCS+ level 1 strictly below 128 bits provable. Conjecture on the table: +2 WOTS chains at chain length 8 recovers provable 128, a cheap fix if it holds. The rejected alternative, 129-bit digests, would poison SNARK aggregation; don't.</li>
     <li><strong>Tighter proofs over bigger parameters.</strong> SPHINCS+-style bounds give ≈124.5 bits from 128-bit digests. If the R2/R3 pair is winnable with a tighter proof at <em>smaller</em> parameters, that beats padding the scheme. The 127-bit conjecture is no longer just a conjecture: leanVM-b's <span class="mono">xmss-fv</span> branch carries a machine-checked 127-bit classical theorem for a concrete synchronized target-sum XMSS. The open question is transporting that tightness to the stateless setting.</li>
-    <li><strong>Grinding.</strong> WOTS+C-style grinding at signing time trades signer cycles (budgeted by R9) for signature bytes (scored). The R9 budget is deliberately the knob that bounds this trick.</li>
+    <li><strong>Grinding.</strong> WOTS+C-style grinding at signing time trades signer cycles (budgeted by R9) for signature bytes (scored). The R9 budget is deliberately the knob that bounds this trick. Bounded attempt counts are also why signing may fail explicitly; R8's 2<sup>−128</sup> availability gate is what bounds that failure.</li>
     <li><strong>Delegation-friendly signing.</strong> The <code>presign</code> split (§5.3) rewards schemes whose heavy bookkeeping is provably non-secret: the more of the signer that runs on the host under the adversary-visible-transcript rule, the less pressure on the 64 KiB / 1.5 s wallet budget. Designing so the delegated transcript is trivially simulatable is a new axis this cost model opens.</li>
     <li><strong>Keygen-time caching.</strong> The 4 KiB non-secret cache (R9) generalizes to a pebbling knob: storing the 2<sup>d</sup> nodes at depth d of a height-h top tree makes signing cost 2<sup>h−d</sup> leaf derivations, so cache size trades directly against signing time. Because the cache is adversary-replaceable in the security game, the trick is only available where tampering is provably harmless, which top-layer digests are.</li>
     <li><strong>zkVM-shaped verification.</strong> Keep digests within word-multiple sizes; batch hash calls into precompile-friendly blocks; structure Merkle paths for sequential memory access. Verification cycles are the scored resource: the verifier's instruction mix matters as much as its hash count.</li>
@@ -625,7 +626,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.12 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.13 · not yet reviewed by the leanSig authors · comments to the lean-crypto channel
 </footer>
 
 </div>

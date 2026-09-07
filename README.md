@@ -1,6 +1,6 @@
 # leanSPHINCS
 
-The [competition spec](https://nconsigny.github.io/leansphincs/) remains draft v0.12. This checkout also stages the WS2–WS4 MVP statement and harness. The permanent challenge home, protected-module governance and independent verifier registration remain deferred.
+The [competition spec](https://nconsigny.github.io/leansphincs/) is at draft v0.13. This checkout also stages the WS2–WS4 MVP statement and harness. The permanent challenge home, protected-module governance and independent verifier registration remain deferred.
 
 The implementation builds against Lean 4.31.0 and the same pinned VCVio revision as the XMSS and SPHINCS proof references. It contains the shared random-oracle SUF-CMA game, exact rational bound evaluator with a proved endpoint test, byte-exact size and weighted verification claims, and a comparator with one scheme-definition hole.
 
@@ -20,7 +20,7 @@ The positive comparator canary proves only metric statements; it is **not baseli
 
 Signing may explicitly return `none`. The claim separately requires correctness on success and failure probability ≤ 2⁻¹²⁸ for each fixed message under fresh key generation and a shared ROM; a 2⁻²⁵⁶ certificate also qualifies. This does not assert adaptive lifetime availability.
 
-See [implementation contract](IMPLEMENTATION.md), [PR #19 compatibility review](PR19_REVIEW.md), and the [workstream plan](SCHEMECLAIM_PLAN.md). Baseline transport, production validation and review of the staged block convention remain before freezing submissions. The signing-failure decision is recorded locally; synchronized publication of both spec targets is still pending.
+See [implementation contract](IMPLEMENTATION.md), [PR #19 compatibility review](PR19_REVIEW.md), and the [workstream plan](SCHEMECLAIM_PLAN.md). Baseline transport, production validation and review of the staged block convention remain before freezing submissions. The signing-failure decision is published in spec v0.13 (R8) on both targets.
 
 For implementers: [submission format and proof obligations](SUBMISSION.md).
 For operators: [sandbox profile, test commands and launch gates](HARNESS_SECURITY.md).

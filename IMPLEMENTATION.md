@@ -1,6 +1,6 @@
 # WS2–WS4 implementation contract
 
-Status: local review candidate, 2026-09-06. The published v0.12 spec has not been edited or republished. This document records concrete implementation choices for review, not a change to competition governance.
+Status: local review candidate, 2026-09-06. The published spec was updated to v0.13 on 2026-09-07 to carry the signing-failure decision (R8). This document records concrete implementation choices for review, not a change to competition governance.
 
 Harness hardening (2026-09-07): verification now captures submission bytes once,
 uses private per-run projects and fresh candidate outputs, and produces
