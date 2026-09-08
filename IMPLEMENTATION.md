@@ -11,6 +11,17 @@ See [HARNESS_SECURITY.md](HARNESS_SECURITY.md) for the precise profile and remai
 production launch gates. The real `SchemeClaim` rejection suite supplements the
 metric-only comparator canaries; it does not replace the missing accepted baseline.
 
+Receipt follow-up (2026-09-08): before scoring, the runner now rechecks dependency
+pins/cleanliness and tool binaries as well as source/harness integrity. Lake is
+included in tool provenance. Complete receipts are atomically published; tests
+exercise drift, interruption and write failures without claiming a cryptographic
+baseline. No protected Lean interfaces or scoring rules changed.
+
+Termination follow-up (2026-09-09): CLI SIGTERM now enters the same worker cleanup
+and interrupted-receipt path as Ctrl-C. Repeated SIGTERM is ignored during
+unwinding; library callers' signal handlers are unchanged. Host tests cover a
+real process-group cleanup and the named systemd stop request/error path.
+
 ## WS2: oracle and game
 
 `Oracle.lean` pins byte-list inputs and 256-bit outputs, with one lazy random-oracle cache shared by key generation, adaptive adversarial hashing, signing and final verification. Fresh uniform sampling is a separate oracle. A hash input costs `max(1, (length + 31) / 32)` verification units, including domain-separation bytes. Empty and 1–32 byte inputs cost 1; 33–64 cost 2; 96 cost 3. Repeated calls are charged even when the ROM returns a cached answer.

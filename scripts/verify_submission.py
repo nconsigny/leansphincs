@@ -2,6 +2,7 @@
 """Isolated, content-addressed MVP verification. Reports are never promotions."""
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import importlib.util
 import json
@@ -22,9 +23,60 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPARATOR = ROOT / ".benchmark-tools/comparator"
 
 
+@contextmanager
+def termination_as_interrupt():
+    """Give CLI SIGTERM the same worker cleanup path as Ctrl-C.
+
+    Ignore repeated termination while unwinding so cleanup is not interrupted.
+    SIGKILL and host failure remain outside this cooperative mechanism.
+    Library callers retain control of their own process signal policy.
+    """
+    def terminate(signum, frame):
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        raise KeyboardInterrupt("SIGTERM")
+
+    previous = signal.signal(signal.SIGTERM, terminate)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
 def digest(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def write_receipt(path: Path, report: dict) -> None:
+    """Publish complete JSON only; a failed write must not look like a receipt.
+
+    This is atomic publication, not an authenticated attestation. A hard kill
+    before replacement may leave a temporary file, never a partial result.json.
+    """
+    payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    descriptor, temporary = tempfile.mkstemp(prefix=".receipt-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def check_integrity(project: Path, report: dict, tool_paths: dict[str, Path]) -> None:
+    """Detect persistent input drift before scoring; not protection from a
+    malicious same-user operator or a substitute for authenticated build caches.
+    """
+    if manifest(capture(project / "LeanSphincs/Submission")) != report["submission"]:
+        raise RuntimeError("snapshot changed during verification; no score issued")
+    if harness_manifest() != report["harness"]:
+        raise RuntimeError("harness changed during verification; no score issued")
+    if check_dependencies() != report["dependencies"]:
+        raise RuntimeError("dependencies changed during verification; no score issued")
+    if {name: digest(path) for name, path in tool_paths.items()} != report["tools"]:
+        raise RuntimeError("tool binaries changed during verification; no score issued")
 
 
 def harness_manifest() -> dict:
@@ -126,7 +178,8 @@ def verify(submission: Path, insecure: bool = False) -> tuple[dict, Path]:
         lean = Path(subprocess.check_output(["lean", "--print-prefix"], cwd=ROOT, text=True).strip())
         tool_paths = {"comparator": COMPARATOR / ".lake/build/bin/comparator",
                      "exporter": COMPARATOR / ".lake/packages/lean4export/.lake/build/bin/lean4export",
-                     "lean": lean / "bin/lean", "leanchecker": lean / "bin/leanchecker"}
+                     "lean": lean / "bin/lean", "lake": lean / "bin/lake",
+                     "leanchecker": lean / "bin/leanchecker"}
         landrun = ROOT / ".benchmark-tools/landrun/landrun"
         if not insecure:
             tool_paths["landrun"] = landrun
@@ -162,12 +215,9 @@ def verify(submission: Path, insecure: bool = False) -> tuple[dict, Path]:
         # service itself starts through env -i with the explicit clean env.
         code = run(command, project, env if insecure else dict(os.environ), directory / "comparator.log")
         report["comparator_exit"] = code
-        report["status"] = "accepted" if code == 0 else "verification_failed"
         stage = "integrity"
-        if manifest(capture(project / "LeanSphincs/Submission")) != report["submission"]:
-            raise RuntimeError("snapshot changed during verification; no score issued")
-        if harness_manifest() != report["harness"]:
-            raise RuntimeError("harness changed during verification; no score issued")
+        check_integrity(project, report, tool_paths)
+        report["status"] = "accepted" if code == 0 else "verification_failed"
         if code == 0:
             report["score"] = {"value": str(sigma * hverify), "direction": "minimize", "tie_break": sigma}
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
@@ -181,7 +231,7 @@ def verify(submission: Path, insecure: bool = False) -> tuple[dict, Path]:
     report["stage"] = stage
     report["finished_unix"] = int(time.time())
     report["logs"] = {p.name: digest(p) for p in directory.glob("*.log")}
-    (directory / "result.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    write_receipt(directory / "result.json", report)
     return report, directory
 
 
@@ -190,7 +240,8 @@ if __name__ == "__main__":
     parser.add_argument("submission", nargs="?", type=Path, default=ROOT / "LeanSphincs/Submission")
     parser.add_argument("--insecure-local", action="store_true", help="organizer-owned diagnostics only")
     args = parser.parse_args()
-    report, directory = verify(args.submission, args.insecure_local)
+    with termination_as_interrupt():
+        report, directory = verify(args.submission, args.insecure_local)
     print(json.dumps({"status": report["status"], "ranked": False, "result": str(directory / "result.json"),
                       **({"error": report["error"]} if "error" in report else {})}))
     sys.exit(0 if report["status"] == "accepted" else 1)

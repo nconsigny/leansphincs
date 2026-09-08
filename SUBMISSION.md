@@ -1,7 +1,7 @@
 # MVP submission contract
 
 Status: implementer guide for the staged harness, not an announcement that
-submissions or prizes are open. The published competition spec remains v0.12.
+submissions or prizes are open. The repository's competition spec is v0.13.
 
 ## Package
 

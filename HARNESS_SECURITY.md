@@ -15,7 +15,17 @@ Each run retains `source/`, `project/`, logs and `result.json` in a distinct
 mode-0700 directory under `benchmark-results/runs/`. The receipt binds filenames,
 source bytes, all three metrics, harness sources, dependency Git pins, tool-binary
 hashes and log hashes. A score is emitted only after successful comparison and a
-post-run input/harness integrity check. Every receipt says `ranked: false`.
+post-run source/harness, dependency-pin/cleanliness and tool-binary integrity
+checks. Lake is included alongside Lean, leanchecker, exporter, comparator and
+(in the strict profile) Landrun in the recorded/rechecked tool hashes.
+Every receipt says `ranked: false`.
+
+Receipts are written to a private temporary file, flushed and atomically renamed
+to `result.json`. A failed write does not publish a partial JSON receipt. A hard
+kill may leave a temporary file or no receipt; consumers must require a complete
+`result.json`. This is not a power-loss durability guarantee or authentication.
+The integrity checks detect persistent drift between checks, not changes restored
+in between; authenticated dependency build artifacts remain a launch requirement.
 
 The statuses are `source_rejected`, `infrastructure_error`, `verification_failed`,
 `interrupted` and `accepted`. `verification_failed` can include a compiler/tool error, not just
@@ -59,6 +69,10 @@ no core dumps, no new privileges. Network I/O, mount, reboot, swap, raw-I/O and
 debug syscall groups are denied. The service receives a clean environment and a
 private HOME and closed stdin. Each service has a unique unit name; timeout or
 cancellation requests a stop of its whole cgroup, not just the waiting client.
+The CLI maps SIGTERM to the same cleanup/interrupted-receipt path as Ctrl-C,
+ignoring repeated SIGTERM while unwinding. Library callers retain control of
+their own signal policy. SIGKILL, host failure, or interruption outside the
+receipt-producing portion of verification can still leave no receipt.
 
 `python3 scripts/check-sandbox.py` runs synthetic positive/negative probes using the
 same resource/permission constructors as verification. It checks outside-file
@@ -70,6 +84,19 @@ Local validation on 2026-09-07 passed all eleven boundary checks, all five
 sandboxed metric canaries, all four actual-claim rejection cases, 22 host tests
 and the Lean library/test builds. This is evidence for this checkout/host, not
 an independent audit or a remote CI/deployment result.
+
+Receipt hardening on 2026-09-08 adds host tests for post-run source, harness,
+dependency and tool drift; failed receipt publication; and orchestration failures
+and interruption before scoring. The host suite now has 33 tests. Its simulated
+success path mocks compilation/comparison and is not an accepted signature scheme.
+The same checkout also passed all eleven live sandbox probes, all five sandboxed
+metric canaries and all four actual-claim rejection cases on 2026-09-08. Each
+actual-claim rejection retained an unranked receipt without a score.
+
+On 2026-09-09 the host suite grew to 37 tests, including real subprocess SIGTERM
+cleanup, signal-handler restoration, repeated-termination behavior and mocked
+systemd stop ordering (including a stop timeout). These do not establish cgroup
+cleanup after a failed systemd stop; the service runtime limit remains a backstop.
 
 ## Tests and remaining launch work
 

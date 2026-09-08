@@ -4,6 +4,28 @@ Status: draft for team review, 2026-09-02; local implementation progress added 2
 
 ## Local implementation progress (2026-09-06)
 
+2026-09-09 independent harness work: cooperative CLI SIGTERM cleanup now follows
+the interruption path, with process-group and systemd-stop regression coverage
+(37 host tests). The OTS target, composition contract and audited reference pin
+remain untouched. Emile's branch advanced to
+[`68a0bac`](https://github.com/leanEthereum/leanVM-b/commit/68a0bacd9fb8456a8a4c25717cbb83bf9ea6c5fc),
+whose commit report leaves the public 126-bit statement unchanged and the final
+127-bit theorem open. That revision has not been rebuilt locally here.
+
+2026-09-08 independent harness work: receipts now recheck dependency pins and
+tool hashes before scoring and publish complete JSON atomically; 33 host tests
+cover integrity drift, orchestration failures and receipt publication. The core
+and first sandbox hardening were committed in `31a5f92`; spec v0.13 followed in
+`4ae1d37`. These receipt changes do not modify the protected Lean claim.
+
+Coordination: leave the proposed OTS target and composition contract open while
+Emile (GitHub `TomWambsgans`) completes his exploration. Monitor
+[sphincs-fv](https://github.com/leanEthereum/leanVM-b/tree/sphincs-fv) before
+integration; do not move the reproduced PR #19 pin automatically. The branch
+snapshot `990b2ce5fa1ee99d8a0797da163db46bc498cf7f` reports reduction improvements
+and explicitly leaves the final 127-bit inequality open. This is an upstream
+commit report, not a local reproduction of that revision.
+
 2026-09-07 harness advance: per-run source capture and isolated build outputs,
 read-only protected/dependency caches, mandatory Linux sandbox probes and
 content-bound receipts are implemented. All four real `SchemeClaim` rejection
@@ -14,7 +36,7 @@ production freeze is complete.
 
 WS2, WS3 and WS4 now have a staged implementation in this checkout, documented in [IMPLEMENTATION.md](IMPLEMENTATION.md). The protected Lean library builds on Lean 4.31.0 / VCVio `cbd4144b51d92da00dd50f05e068b2348fa6e529`; its axiom audit admits only the three standard axioms. The exact rational floor predicate has a proved two-endpoint characterization. The comparator has one scheme-definition hole and binds all three declared metric files. Organizer canaries exercise successful matching, rejection of each changed metric, and forbidden-axiom rejection; they are not baseline #0.
 
-Verified again on 2026-09-07 after the previous session was cut off: the protected library builds, the axiom audit passes, the ten host-side contract tests pass, the signing-failure regression fixtures (always-failing signer rejected, invalid successful output rejected, failed requests charged to the signing budget, `none` never counts as replay) compile, the five comparator canary fixtures were recreated for the `Option Bytes` signing interface and all five real-comparator runs return the expected verdicts, and the PR #19 126-bit endpoint was reproduced locally with a standard-axiom footprint (see PR19_REVIEW.md). A `LeanSphincsTest.lean` root now lets `lake build LeanSphincsTest` succeed. This work is still uncommitted in the checkout.
+Verified again on 2026-09-07 after the previous session was cut off: the protected library builds, the axiom audit passes, the ten host-side contract tests pass, the signing-failure regression fixtures (always-failing signer rejected, invalid successful output rejected, failed requests charged to the signing budget, `none` never counts as replay) compile, the five comparator canary fixtures were recreated for the `Option Bytes` signing interface and all five real-comparator runs return the expected verdicts, and the PR #19 126-bit endpoint was reproduced locally with a standard-axiom footprint (see PR19_REVIEW.md). A `LeanSphincsTest.lean` root now lets `lake build LeanSphincsTest` succeed. This work was subsequently committed in `31a5f92`.
 
 The staged WS2 block convention is `max(1, ceil(inputBytes / 32))`, charging all supplied bytes, including domain separation. This is an implementation decision for review before freeze. The public spec is at v0.13 (2026-09-07), which carries the signing-failure decision; the block convention below is still an implementation choice for review. Repo home and merge rights remain deferred.
 
