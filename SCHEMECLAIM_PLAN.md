@@ -4,6 +4,12 @@ Status: draft for team review, 2026-09-02; local implementation progress added 2
 
 ## Local implementation progress (2026-09-06)
 
+2026-09-09 shipping progress: receipt integrity and SIGTERM handling were committed
+and pushed unsigned in `e639597` (no co-author trailer). The next harness batch
+adds per-checkout admission locking and retryable `worker_busy` receipts before
+candidate access, with 45 host tests. This advances worker admission, not the
+remaining external scheduler, aggregate disk quota or cryptographic baseline.
+
 2026-09-09 independent harness work: cooperative CLI SIGTERM cleanup now follows
 the interruption path, with process-group and systemd-stop regression coverage
 (37 host tests). The OTS target, composition contract and audited reference pin

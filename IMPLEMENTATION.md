@@ -22,6 +22,12 @@ and interrupted-receipt path as Ctrl-C. Repeated SIGTERM is ignored during
 unwinding; library callers' signal handlers are unchanged. Host tests cover a
 real process-group cleanup and the named systemd stop request/error path.
 
+Admission follow-up (2026-09-09): the public runner entry point holds a
+per-checkout, nonblocking kernel lock before capture through receipt publication.
+Contention produces an unranked, retryable `worker_busy` receipt without reading
+the candidate. The host suite now has 45 tests. This is cooperative admission,
+not a durable queue, aggregate disk quota or crash-surviving cgroup scheduler.
+
 ## WS2: oracle and game
 
 `Oracle.lean` pins byte-list inputs and 256-bit outputs, with one lazy random-oracle cache shared by key generation, adaptive adversarial hashing, signing and final verification. Fresh uniform sampling is a separate oracle. A hash input costs `max(1, (length + 31) / 32)` verification units, including domain-separation bytes. Empty and 1–32 byte inputs cost 1; 33–64 cost 2; 96 cost 3. Repeated calls are charged even when the ROM returns a cached answer.

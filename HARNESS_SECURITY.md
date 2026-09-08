@@ -27,10 +27,34 @@ kill may leave a temporary file or no receipt; consumers must require a complete
 The integrity checks detect persistent drift between checks, not changes restored
 in between; authenticated dependency build artifacts remain a launch requirement.
 
-The statuses are `source_rejected`, `infrastructure_error`, `verification_failed`,
+The statuses are `worker_busy`, `source_rejected`, `infrastructure_error`, `verification_failed`,
 `interrupted` and `accepted`. `verification_failed` can include a compiler/tool error, not just
 a false theorem; consult its log. Rejections never emit a score. Receipts are local
 evidence, not signed attestations or authority to award/promote a submission.
+
+## Admission and operator responsibilities
+
+The `verify()` entry point (including `benchmark.sh` and insecure diagnostics)
+holds a nonblocking kernel file lock at `benchmark-results/runs/.worker.lock`
+before capture and through receipt publication. A concurrent invocation returns
+a `worker_busy` receipt with `retryable: true`, no captured submission and no
+score. It exits nonzero; a trusted caller may retry with backoff. This is not
+a theorem rejection and does not require changing the candidate.
+
+The lock is per checkout and cooperative, not a host-wide resource quota or a
+durable queue. Organizer-only comparator canaries do not use this entry point.
+Do not delete or replace the lock file: its persistent inode is intentional;
+the kernel releases ownership when the owning process closes it or dies. Its
+descriptor is not inherited by executed children. A hard-killed owner may still
+leave a detached systemd service running until its runtime cap. Operators must
+stop/verify orphaned services before reusing a worker after such a failure.
+
+Use one disposable worker checkout per provisioned resource allocation, with an
+external scheduler preventing overlapping jobs. Put results on a quota-limited
+volume and bound queue ingress/retention before accepting public submissions.
+Busy receipts themselves use disk, so admission locking is not a disk-exhaustion
+defense. No automatic artifact deletion is implemented. A signed receipt service,
+aggregate disk quota and crash-surviving worker lifecycle remain launch gates.
 
 ## Filesystem and cache isolation
 
@@ -98,6 +122,15 @@ cleanup, signal-handler restoration, repeated-termination behavior and mocked
 systemd stop ordering (including a stop timeout). These do not establish cgroup
 cleanup after a failed systemd stop; the service runtime limit remains a backstop.
 
+Admission follow-up on 2026-09-09 brings the host suite to 45 tests. Tests cover
+same-process and cross-process contention, recovery after owner death, exception
+release, no lock inheritance across exec, symlink/FIFO rejection, receipt timing
+and retry without reading a candidate while busy.
+The admission-enabled runner also passed all four actual-claim rejection cases
+in the strict Linux profile, each with the intended diagnostic and no score.
+A concurrent CLI probe returned `worker_busy` before accessing its nonexistent
+input. The protected library/test build and standard-axiom audit passed again.
+
 ## Tests and remaining launch work
 
 ```sh
@@ -132,9 +165,10 @@ Before opening submissions:
 4. Run the external harness audit; pin the operating-system/systemd/tool versions
    and validate the profile on its dedicated worker. Do not run an untrusted PR
    on a credential-bearing persistent self-hosted runner.
-5. Add worker-queue concurrency/aggregate disk quotas, log-retention policy and
-   signed verifier receipts. Per-file/process limits are not an aggregate disk
-   quota. Local runs retain artifacts; an operator must manage retention.
+5. Extend the cooperative per-checkout admission lock with an external durable
+   queue, crash-surviving worker lifecycle, aggregate disk quotas, log-retention
+   policy and signed verifier receipts. Per-file/process limits are not an
+   aggregate disk quota. Local runs retain artifacts; an operator must manage retention.
 6. Add reviewed frontier promotion/credit and website ingestion of authenticated
    results. Do not let a submitted JSON receipt promote itself. Wallet/cycle gates
    and full-track rules remain separate unfinished work.

@@ -86,6 +86,10 @@ Editing the original folder after capture does not change what was verified.
 Each run has fresh candidate build outputs. An `accepted` local result is still
 unranked: no remote verifier has registered, audited or promoted it.
 
+Only one verification is admitted per checkout. A `worker_busy` result is
+retryable, exits nonzero and does not read or reject your candidate; retry after
+the current run finishes. Do not delete `.worker.lock` to bypass admission.
+
 If sandbox setup fails, fix the host using [HARNESS_SECURITY.md](HARNESS_SECURITY.md).
 Do not treat the explicit `--insecure-local` option as a substitute for the
 competition verifier; it is for organizer-owned diagnostics only.

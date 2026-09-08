@@ -18,6 +18,7 @@ import time
 from benchmark_contract import metrics, render
 from sandbox_profile import systemd_command
 from source_bundle import capture, manifest, materialize
+from worker_admission import WorkerBusy, worker_slot
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPARATOR = ROOT / ".benchmark-tools/comparator"
@@ -153,6 +154,24 @@ def run(command: list[str], project: Path, env: dict, log: Path, timeout: int = 
 
 
 def verify(submission: Path, insecure: bool = False) -> tuple[dict, Path]:
+    result_root = ROOT / "benchmark-results/runs"
+    result_root.mkdir(parents=True, exist_ok=True)
+    try:
+        with worker_slot(result_root):
+            return _verify_admitted(submission, insecure)
+    except WorkerBusy as error:
+        now = int(time.time())
+        report = {"schema": "leansphincs-verification-v1", "ranked": False,
+                  "profile": "insecure-local" if insecure else "leansphincs-linux-v1",
+                  "status": "worker_busy", "stage": "admission", "retryable": True,
+                  "started_unix": now, "finished_unix": now, "error": str(error), "logs": {}}
+        directory = Path(tempfile.mkdtemp(prefix="run-", dir=result_root))
+        os.chmod(directory, 0o700)
+        write_receipt(directory / "result.json", report)
+        return report, directory
+
+
+def _verify_admitted(submission: Path, insecure: bool = False) -> tuple[dict, Path]:
     result_root = ROOT / "benchmark-results/runs"
     result_root.mkdir(parents=True, exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix="run-", dir=result_root))
