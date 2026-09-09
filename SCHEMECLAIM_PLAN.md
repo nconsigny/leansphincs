@@ -4,6 +4,23 @@ Status: draft for team review, 2026-09-02; local implementation progress added 2
 
 ## Local implementation progress (2026-09-06)
 
+2026-09-09 OTS exploration: the organizer requests a four-factor objective
+`size * signing * verification * keygen^beta`, with lower keygen weight. Beta = 1/4
+is now approved; expected-versus-worst-case signing semantics remain pending. Experimental exact
+ranking, Lean graph/cost foundations and a re-metered fixed-family counting engine
+are implemented separately from the protected MVP. See [OTS_STAGE1.md](OTS_STAGE1.md)
+for evidence, assumptions and the remaining security/composition proof milestones.
+Neither the full-scheme score nor the published spec changes in this batch.
+The next increment adds actual byte-level graph oracle evaluation, injective
+address/value encoding and a worst-case weighted-query theorem, including
+missing-input rejection and repeated gates. Graph correctness, codebook decoding,
+availability and strong one-time security remain separate unfinished obligations.
+The subsequent increment proves reconstruction under an oracle-consistent
+reference and adaptive failure envelopes with explicit exception allowances.
+The requested worst-case probability treatment is documented in OTS_STAGE1.md;
+it is not a claim that the concrete signer satisfies the freshness premise or
+that a single-request bound automatically extends to an entire key lifetime.
+
 2026-09-09 shipping progress: receipt integrity and SIGTERM handling were committed
 and pushed unsigned in `e639597` (no co-author trailer). The next harness batch
 adds per-checkout admission locking and retryable `worker_busy` receipts before
