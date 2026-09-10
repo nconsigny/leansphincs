@@ -89,12 +89,14 @@ class WebsiteTests(unittest.TestCase):
         self.assertIn("Fixed-budget search is now the objective itself", objective)
         self.assertIn("Hash chains are not assumed optimal", objective)
 
-    def test_github_is_canonical(self):
+    def test_publication_mechanics_stay_out_of_the_rules(self):
         self.assertIn('<link rel="canonical" href="https://nconsigny.github.io/leansphincs/">', self.source)
-        status = self.page.section_text("implementation-status")
-        self.assertIn("GitHub is canonical", status)
-        self.assertIn("Claude artifact is a legacy copy", status)
-        self.assertIn("no longer maintained as a synchronized mirror", status)
+        self.assertNotIn("GitHub is canonical", self.source)
+        self.assertNotIn("Claude artifact", self.source)
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("GitHub is canonical", agents)
+        self.assertIn("frozen legacy copy", agents)
+        self.assertIn("Never republish it", agents)
 
     def test_current_oracle_meter(self):
         cost = self.page.section_text("costmodels")

@@ -18,11 +18,8 @@ security assumptions. Old 32-byte-unit results must be rechecked, not mixed into
 the new profile. Under fixed size/signing constraints, the primitive search does
 not assume hash chains are optimal; ROM-secure Reed–Solomon encodings stay in scope.
 
-**GitHub is canonical**, by organizer decision on 2026-09-10. This repository's
-`index.html` is the spec source, published from `main` to GitHub Pages. The earlier
-Claude artifact is a legacy copy, is no longer maintained as a synchronized
-mirror, and must not be used as the current rules. Publication no longer waits
-for a Claude update.
+The rules are published from `index.html` on `main` to GitHub Pages. Publication
+mechanics and editing conventions for agents live in [AGENTS.md](AGENTS.md).
 
 See [OTS foundations and proof milestones](OTS_STAGE1.md) and the
 [polynomial-coding review](POLYNOMIAL_CODING_REVIEW.md).
