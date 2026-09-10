@@ -6,6 +6,7 @@ complete signing/verification algorithms and security theorem were not supplied.
 """
 
 import json
+from oracle_meter import hash_weight, meter_metadata
 
 
 def keygen_estimates():
@@ -15,7 +16,7 @@ def keygen_estimates():
     address_bytes = 16  # Assumed layout for comparison, not a registered profile.
 
     def weight(size):
-        return max(1, (size + address_bytes + 31) // 32)
+        return hash_weight(size + address_bytes)
 
     # A 512-bit coefficient string needs two differently addressed 256-bit calls.
     expansions = columns * 2 * weight(seed_bytes)
@@ -23,6 +24,7 @@ def keygen_estimates():
     parent_hashes = parents * weight(parent_bytes)
     return {
         "ranked": False, "costs_certified": False, "security_proved": False,
+        "hash_meter": meter_metadata(),
         "scope": "keygen only; naive Horner counts are not measured RISC-V cycles",
         "paper_keygen_units": columns + rows + parents,
         "assumed_address_bytes": address_bytes,

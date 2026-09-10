@@ -16,6 +16,7 @@ import tempfile
 import time
 
 from benchmark_contract import metrics, render
+from oracle_meter import meter_metadata
 from sandbox_profile import systemd_command
 from source_bundle import capture, manifest, materialize
 from worker_admission import WorkerBusy, worker_slot
@@ -162,6 +163,7 @@ def verify(submission: Path, insecure: bool = False) -> tuple[dict, Path]:
     except WorkerBusy as error:
         now = int(time.time())
         report = {"schema": "leansphincs-verification-v1", "ranked": False,
+                  "hash_meter": meter_metadata(),
                   "profile": "insecure-local" if insecure else "leansphincs-linux-v1",
                   "status": "worker_busy", "stage": "admission", "retryable": True,
                   "started_unix": now, "finished_unix": now, "error": str(error), "logs": {}}
@@ -177,6 +179,7 @@ def _verify_admitted(submission: Path, insecure: bool = False) -> tuple[dict, Pa
     directory = Path(tempfile.mkdtemp(prefix="run-", dir=result_root))
     os.chmod(directory, 0o700)
     report = {"schema": "leansphincs-verification-v1", "ranked": False,
+              "hash_meter": meter_metadata(),
               "profile": "insecure-local" if insecure else "leansphincs-linux-v1",
               "status": "infrastructure_error", "started_unix": int(time.time())}
     stage = "capture"

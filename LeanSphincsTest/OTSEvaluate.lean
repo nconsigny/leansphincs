@@ -9,16 +9,16 @@ private def known : Values := fun _ => some 7
 
 example : (unary.queryInput known).length = 32 := by decide
 example : (fourInputs.queryInput known).length = 80 := by decide
-example : hashWeight (fourInputs.queryInput known) = 3 := by decide
+example : hashWeight (fourInputs.queryInput known) = 2 := by decide
 example : valueBytes 1 = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] := by decide
 
 example : unary.evaluate (fun _ => none) = pure none := by
   simp [Gate.evaluate, unary]
 
-example : graph.scheduleCost [⟨0, by decide⟩, ⟨1, by decide⟩] = 4 := by decide
-example : graph.scheduleCost [⟨1, by decide⟩, ⟨1, by decide⟩] = 6 := by decide
+example : graph.scheduleCost [⟨0, by decide⟩, ⟨1, by decide⟩] = 3 := by decide
+example : graph.scheduleCost [⟨1, by decide⟩, ⟨1, by decide⟩] = 4 := by decide
 
-example : HasVerifyCost (graph.evaluate known [⟨0, by decide⟩, ⟨1, by decide⟩]) 4 :=
+example : HasVerifyCost (graph.evaluate known [⟨0, by decide⟩, ⟨1, by decide⟩]) 3 :=
   graph.evaluate_cost known _
 
 example : writeOutputs known 5 0 (.source 0) = some 7 := by decide

@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import sys
 from benchmark_contract import metrics
+from oracle_meter import meter_metadata
 
 if len(sys.argv) != 3:
     raise SystemExit("usage: write-score.py SUBMISSION_DIR RENDERED_SNAPSHOT")
@@ -18,6 +19,7 @@ if snapshot != {"sigma": sigma, "hverify": hverify, "bound": bound}:
     raise SystemExit("declared metrics changed after rendering; no score issued")
 print(json.dumps({
     "profile": "declared-metrics-only", "ranked": False, "verified": False,
+    "hash_meter": meter_metadata(),
     "sigma": sigma, "hverify": hverify, "bound": bound,
     "score": str(sigma * hverify), "direction": "minimize", "tie_break": sigma,
 }))

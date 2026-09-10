@@ -16,7 +16,7 @@ jobs:
       - uses: leanprover/lean-action@v1
       - run: bash setup.sh
       - run: python3 -m unittest discover -s tests -v
-      - run: lake build LeanSphincsTest.BoundExamples LeanSphincsTest.SigningFailure
+      - run: lake build LeanSphincsTest.BoundExamples LeanSphincsTest.SigningFailure LeanSphincsTest.OracleMeter
       - run: lake build LeanSphincsTest.OTSScore LeanSphincsTest.OTSGraph LeanSphincsTest.OTSEvaluate
       - run: lake build LeanSphincsTest.OTSReconstruct LeanSphincsTest.OTSFailure
       - run: lake env lean scripts/check-ots-axioms.lean

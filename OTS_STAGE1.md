@@ -1,8 +1,9 @@
 # Stage 1: hash-graph OTS exploration
 
 Status: experimental implementation, updated 2026-09-10. Not an open competition,
-protected OTS claim or security proof. The v0.14 website draft adopts the shared
-objective for both stages; the implemented legacy MVP claim remains unchanged.
+protected OTS claim or security proof. The v0.15 website draft retains the shared
+objective for both stages and updates the protected hash-work meter to 64-byte
+input units. The legacy MVP claim still has only its original metric fields.
 Emile's full SPHINCS reference and ongoing OTS work are not modified here.
 
 ## Objective decision
@@ -39,7 +40,7 @@ The organizer approved applying the same four-factor objective to Stage 2 on
 compare primitives directly with complete schemes, or to mix metric profiles.
 The existing legacy full-scheme MVP still scores `sigma * hverify`; its
 `SchemeClaim` and three-file contract do not yet certify the new K/S factors.
-Website v0.14 is maintained on GitHub, the canonical source by organizer decision
+Website v0.15 is maintained on GitHub, the canonical source by organizer decision
 on 2026-09-10. The earlier Claude artifact is a legacy copy, not a synchronized
 publication target.
 
@@ -50,6 +51,13 @@ hard execution/memory gates before promotion. The definitive prize profile,
 weights and caps remain to calibrate. The existing 45 s / 1.5 s wallet budgets
 have not been replaced by the illustrative 5 minute / 5 second thresholds.
 See [POLYNOMIAL_CODING_REVIEW.md](POLYNOMIAL_CODING_REVIEW.md).
+
+At fixed signature size and signing budget, the conditional objective can be
+minimum verification work. Hash chains are not presumed optimal: the organizer
+reports regimes where Reed–Solomon-coded candidates improve this tradeoff.
+Keep such conditional frontiers without claiming a global lower bound or dropping
+keygen/availability gates. The current four fixed-family experiments do not yet
+implement the annex's complete coded signer/verifier.
 
 ## Implemented foundations
 
@@ -93,25 +101,30 @@ See [POLYNOMIAL_CODING_REVIEW.md](POLYNOMIAL_CODING_REVIEW.md).
 ## Reproducible experiments
 
 ```sh
-python3 scripts/ots_experiments.py --profile rom32 --beta 1/4 \
-  --signing-work 196608 --signing-kind expected-upper-bound --include-frontier
+python3 scripts/ots_experiments.py --profile rom32-input64 --beta 1/4 \
+  --signing-work 131072 --signing-kind expected-upper-bound --include-frontier
 python3 -m unittest discover -s tests -v
 lake build LeanSphincsTest
 lake env lean scripts/check-ots-axioms.lean
 ```
 
 The example signing metric is hypothetical: 2^16 expected encoding queries times
-three weighted units per query under the assumed layout. It is not a proved
+two weighted units per query under the assumed layout. It is not a proved
 signing certificate. The output explicitly says `ranked: false`,
 `security_proved: false`, and `costs_certified: false`.
 
 `paper` reproduces the note's 73/68/63/60 verification-cost minima under its own
-oracle. `rom32` instead assumes a fixed 16-byte unique gate address encoded in
-every input, in addition to the 16-byte values. A four-input merge or a 32-byte
-message plus 32-byte nonce therefore costs three units. A four-output expansion
-  uses two separately addressed 32-byte-output queries. Address serialization and
-  separation are now proved for the evaluator; reserved encoding domains,
-  construction-specific graph translation and simulation equivalence still need proofs.
+oracle. The current `rom32-input64` profile assumes a fixed 16-byte unique gate
+address encoded in every input, in addition to the 16-byte values. The oracle
+output stays 32 bytes, while work is `ceil(inputBytes / 64)`. A four-input merge
+or a 32-byte message plus 32-byte nonce costs two units with the address included.
+A four-output expansion uses two separately addressed 32-byte-output queries.
+Address serialization and separation are proved for the evaluator; reserved
+encoding domains, construction-specific graph translation and simulation
+equivalence still need proofs. Empty input costs zero hash-work units but still
+counts as a security query; these graph queries all contain nonempty addresses.
+The historical `rom32` profile keeps its old 32-byte input-unit costs for
+reproduction only. JSON reports distinguish the meters; do not mix their scores.
 These are candidate-layout choices, not a new competition oracle definition.
 
 Under this layout, with 2^112 disclosures required and a cap of 128 disclosed
@@ -119,10 +132,10 @@ values, the product-selected points for the fixed graph shapes are:
 
 | Fixed shape | Signature bytes | Keygen | Verification |
 | --- | ---: | ---: | ---: |
-| Chains | 1888 | 198 | 105 |
-| Branching forest | 1648 | 241 | 128 |
-| Pairwise shared seeds | 1712 | 283 | 140 |
-| Four-way shared seeds | 1856 | 424 | 166 |
+| Chains | 1888 | 169 | 75 |
+| Branching forest | 1648 | 201 | 96 |
+| Pairwise shared seeds | 1744 | 220 | 101 |
+| Four-way shared seeds | 1824 | 329 | 123 |
 
 All rows use the same stipulated signing work; the CLI computes the four-factor
 rank key for the supplied beta. These shapes no longer meet the note's keygen

@@ -1,9 +1,17 @@
 # leanSPHINCS
 
 The [competition site](https://nconsigny.github.io/leansphincs/) carries draft
-v0.14: Stage 1 searches OTS primitives; Stage 2 composes complete
+v0.15: Stage 1 searches OTS primitives; Stage 2 composes complete
 stateless schemes. Both use `size * signing * verification * keygen^(1/4)`, with
 hard usability gates and separate hash-work/cycle profiles.
+
+The oracle accepts arbitrary-length inputs and returns **32 bytes**. Hash work is
+now `ceil(inputBytes / 64)` per call, including domain-separation bytes; empty
+input costs zero hash-work units but still counts as a raw security query.
+This is a breaking meter revision (`rom256-input64-ceil-v1`), not a change to
+security assumptions. Old 32-byte-unit results must be rechecked, not mixed into
+the new profile. Under fixed size/signing constraints, the primitive search does
+not assume hash chains are optimal; ROM-secure Reed–Solomon encodings stay in scope.
 
 **GitHub is canonical**, by organizer decision on 2026-09-10. This repository's
 `index.html` is the spec source, published from `main` to GitHub Pages. The earlier
@@ -41,7 +49,7 @@ and are rejected by the production import policy.
 
 Signing may explicitly return `none`. The claim separately requires correctness on success and failure probability ≤ 2⁻¹²⁸ for each fixed message under fresh key generation and a shared ROM; a 2⁻²⁵⁶ certificate also qualifies. This does not assert adaptive lifetime availability.
 
-See [implementation contract](IMPLEMENTATION.md), [PR #19 compatibility review](PR19_REVIEW.md), and the [workstream plan](SCHEMECLAIM_PLAN.md). Baseline transport, production validation and review of the staged block convention remain before freezing submissions. The signing-failure decision first appeared in spec v0.13 (R8) on both then-synchronized targets; subsequent revisions are maintained on GitHub.
+See [implementation contract](IMPLEMENTATION.md), [PR #19 compatibility review](PR19_REVIEW.md), and the [workstream plan](SCHEMECLAIM_PLAN.md). Baseline transport and production validation remain before freezing submissions; the 64-byte input-unit convention is now pinned. The signing-failure decision first appeared in spec v0.13 (R8) on both then-synchronized targets; subsequent revisions are maintained on GitHub.
 
 For implementers: [submission format and proof obligations](SUBMISSION.md).
 For operators: [sandbox profile, test commands and launch gates](HARNESS_SECURITY.md).

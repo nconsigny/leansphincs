@@ -10,8 +10,9 @@ class PolynomialAnnexTests(unittest.TestCase):
     def test_paper_and_remetered_keygen(self):
         result = keygen_estimates()
         self.assertEqual(result["paper_keygen_units"], 405)
-        self.assertEqual(result["rom32_keygen"], {"seed_expansion_units": 256,
-            "row_units": 768, "parent_units": 255, "total_units": 1279})
+        self.assertEqual(result["rom32_keygen"], {"seed_expansion_units": 128,
+            "row_units": 512, "parent_units": 170, "total_units": 810})
+        self.assertEqual(result["hash_meter"]["id"], "rom256-input64-ceil-v1")
         self.assertFalse(result["ranked"])
         self.assertFalse(result["costs_certified"])
         self.assertFalse(result["security_proved"])

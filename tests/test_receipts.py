@@ -26,6 +26,7 @@ class ReceiptTests(unittest.TestCase):
         dependencies.assert_not_called()
         self.assertEqual(report["status"], "source_rejected")
         self.assertFalse(report["ranked"])
+        self.assertEqual(report["hash_meter"]["id"], "rom256-input64-ceil-v1")
         self.assertNotIn("score", report)
         self.assertEqual(json.loads((directory / "result.json").read_text()), report)
 

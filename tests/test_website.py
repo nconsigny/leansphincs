@@ -75,14 +75,16 @@ class WebsiteTests(unittest.TestCase):
         self.assertGreater(checked, 0)
 
     def test_version_and_shared_objective(self):
-        self.assertIn("DRAFT v0.14", self.source)
-        self.assertIn("draft rules v0.14", self.source)
+        self.assertIn("DRAFT v0.15", self.source)
+        self.assertIn("draft rules v0.15", self.source)
         objective = self.page.section_text("objective")
         self.assertIn("both stages", objective)
         self.assertIn("(|σ| * S * V)^4 * K", objective)
         self.assertIn("β = 1/4", objective)
         self.assertIn("Expected versus worst-case signing work", objective)
         self.assertIn("not directly comparable", objective)
+        self.assertIn("With signature size and signing budget fixed", objective)
+        self.assertIn("Hash chains are not assumed optimal", objective)
 
     def test_github_is_canonical(self):
         self.assertIn('<link rel="canonical" href="https://nconsigny.github.io/leansphincs/">', self.source)
@@ -90,6 +92,16 @@ class WebsiteTests(unittest.TestCase):
         self.assertIn("GitHub is canonical", status)
         self.assertIn("Claude artifact is a legacy copy", status)
         self.assertIn("no longer maintained as a synchronized mirror", status)
+
+    def test_current_oracle_meter(self):
+        cost = self.page.section_text("costmodels")
+        self.assertIn("32-byte output", cost)
+        self.assertIn("ceil(inputBytes / 64)", cost)
+        self.assertIn("including domain separation", cost)
+        self.assertIn("rom256-input64-ceil-v1", cost)
+        self.assertIn("Sum the per-call ceilings", cost)
+        self.assertIn("empty-input case follows the literal ceiling", cost)
+        self.assertNotIn("ceil(inputBytes / 32)", self.source)
 
     def test_no_false_launch_or_four_factor_harness_claim(self):
         self.assertIn("submissions not open", self.source)

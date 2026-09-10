@@ -75,6 +75,7 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(report["status"], "worker_busy")
         self.assertEqual(report["stage"], "admission")
         self.assertTrue(report["retryable"])
+        self.assertEqual(report["hash_meter"]["id"], "rom256-input64-ceil-v1")
         self.assertFalse(report["ranked"])
         self.assertNotIn("score", report)
         self.assertNotIn("submission", report)

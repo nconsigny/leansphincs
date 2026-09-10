@@ -22,20 +22,31 @@ strong-unforgeability claim is derived from it here.
 
 ## The cost-model warning is real
 
+The organizer's subsequent clarification is a constrained-search statement: with
+signature size and signing budget fixed, minimizing verification can favor a
+Reed–Solomon-coded construction rather than a hash chain. We retain that search
+direction, without interpreting the displayed page as a proof of global
+optimality or a complete competition entry.
+
 The annex allows a 64-byte output per call and free field arithmetic. Our oracle
-returns 32 bytes and charges all supplied input bytes. Under the **assumed**
+returns 32 bytes and now charges `ceil(inputBytes / 64)` per call (v0.15), including
+all supplied domain-separation bytes. Under the **assumed**
 16-byte address layout used by the current OTS experiments:
 
 | Keygen operation | Assumed implementation | Weighted units |
 | --- | --- | ---: |
-| 64 coefficient expansions | two calls per 17-byte seed; 33-byte tagged input | 256 |
-| 256 row hashes | 80-byte tagged inputs | 768 |
-| 85 Merkle parents | 80-byte tagged inputs | 255 |
-| Total | same displayed shape, not re-optimized | 1,279 |
+| 64 coefficient expansions | two calls per 17-byte seed; 33-byte tagged input | 128 |
+| 256 row hashes | 80-byte tagged inputs | 512 |
+| 85 Merkle parents | 80-byte tagged inputs | 170 |
+| Total | same displayed shape, not re-optimized | 810 |
 
 This is a source-level re-metering, not a Lean cost certificate or a practical
 hash instantiation. A concrete layout, domain-separation/simulation proof and
 re-optimization may change it. It is not comparable to a full SPHINCS score.
+The earlier 1,279-unit estimate used the superseded 32-byte input unit; 810 is
+a meter revision, not an algorithmic speedup. The 64-byte input unit does not
+restore the annex's 64-byte output. The literal ceiling charges an empty input
+zero hash-work units, but raw security queries and execution work remain charged.
 
 Naive Horner evaluation of all columns at all points uses
 `64 * 256 * 63 = 1,032,192` GF(256) multiplications and the same number of additions.
@@ -83,7 +94,9 @@ and the cycle profile remain launch work. The final award profile and expected-
 versus-worst-case signing score remain open; worst-case failure probability is
 a separate proof obligation.
 
-No cryptographic interface, audited upstream pin or protected legacy claim was
-changed to accommodate an unproved candidate. The next execution work is a
+The cryptographic interface and audited upstream pin are unchanged. The v0.15
+protected hash-work meter was updated by organizer decision, independently of
+any candidate's security proof; the legacy claim still lacks K/S certificates.
+The next execution work is a
 metered encoding kernel plus exact oracle/program binding, not an aesthetic ban
 on unusual constructions or a silent switch to a different hash oracle.

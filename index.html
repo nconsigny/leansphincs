@@ -303,7 +303,7 @@
   <h1><span class="lean">lean</span>SPHINCS</h1>
   <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.14</strong></span>
+    <span><strong>DRAFT v0.15</strong></span>
     <span>2026-09-10</span>
     <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
   </div>
@@ -376,6 +376,7 @@
   <p>The initial <strong>hash-work view</strong> uses K = H<sub>keygen</sub>, S = H<sub>sign</sub>, V = H<sub>verify</sub>, each weighted by input length under the same oracle. A <strong>cycle-based view</strong> applies the same formula to registered execution-cost meters. Scores from different profiles or stages are not directly comparable. Keygen includes graph/seed expansion and required setup; signing includes encoding, retries and authentication; verification includes decoding, padding checks and all authentication work. Delegated work and cache construction cannot simply disappear from accounting.</p>
   <p>Compare the exact key <code>(|σ| * S * V)^4 * K</code>, not floating-point roots. Every scored quantity must ultimately be bound to the actual implementation by a certificate. <span class="tbd">Expected versus worst-case signing work</span> remains a profile decision: experiments may state either explicitly, but they must never be mixed on one ranking. Independent worst-case execution caps and a signing-failure theorem are required even if expected work is selected.</p>
   <p><strong>Hash minimization is not a deployment certificate.</strong> Polynomial/Reed–Solomon coding, codebook unranking and big-integer arithmetic can save hash calls while adding substantial instructions, memory accesses or table construction. These operations stay in scope when security needs no assumption beyond the ROM, but all executable work must be metered. Keep both hash and cycle frontiers; promotion requires the pinned execution-cost and memory gates, not a claim that arithmetic is free. The cycle profile and caps must be calibrated before awards; they are not yet implemented in the harness.</p>
+  <p><strong>Fixed-budget search is another slice of the frontier.</strong> With signature size and signing budget fixed, search for minimum verification work while retaining keygen costs and all eligibility gates. Hash chains are not assumed optimal: Emile's exploration identifies regimes where Reed–Solomon-coded constructions can improve that tradeoff. This does not establish global optimality across all ROM-secure schemes, nor replace the shared four-factor objective.</p>
 </section>
 
 <section id="rules">
@@ -445,7 +446,7 @@
   <div class="rule">
     <div class="rule-head"><span class="rid">R9</span><span class="rule-title">Wallet-side budgets</span></div>
     <p>On the wallet cost vector (§5.2): key generation ≤ 45 s and signing ≤ 1.5 s at the 160 MHz anchor, signer RAM ≤ 64 KiB (the user RAM of the Ledger Nano S+ secure element), plus a <strong>persistent non-secret cache of ≤ 4 KiB</strong>, written at key generation and readable at signing (§5.2). The caps bind the wallet-side stages only; delegated pre-signing has its own budget (§5.3).</p>
-    <p>These existing caps are retained in v0.14; the discussion of 5-second signing and 5-minute keygen did not approve replacing them. Hard limits must include encoding, finite-field and big-integer operations, allocations, table preparation and all permitted retries. Failing before the deadline does not waive R8's availability gate. A hash-only score or average timing run is not a worst-case latency certificate.</p>
+    <p>These existing caps are retained in v0.15; the discussion of 5-second signing and 5-minute keygen did not approve replacing them. Hard limits must include encoding, finite-field and big-integer operations, allocations, table preparation and all permitted retries. Failing before the deadline does not waive R8's availability gate. A hash-only score or average timing run is not a worst-case latency certificate.</p>
     <p class="check">required wallet execution/memory gates (§5.2); not enforced by the current legacy MVP harness</p>
   </div>
 
@@ -474,6 +475,19 @@
 <section id="costmodels">
   <h2><span class="secno">5</span>Cost model: one machine, multiple explicit profiles</h2>
 
+  <p id="oracle-work"><strong>Oracle and hash-work meter, pinned in v0.15:</strong> arbitrary-length byte-string input → <strong>32-byte output</strong>. Each call costs <code>ceil(inputBytes / 64)</code> units, counting all supplied input bytes, including domain separation and length encoding. Sum the per-call ceilings; do not round once after adding lengths across calls. Repeated queries are charged again, even when their answers are cached.</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Supplied input bytes</th><th class="num">Hash-work units per call</th></tr>
+    <tr><td>0</td><td class="num">0</td></tr>
+    <tr><td>1–64</td><td class="num">1</td></tr>
+    <tr><td>65–128</td><td class="num">2</td></tr>
+    <tr><td>129–192</td><td class="num">3</td></tr>
+  </table>
+  </div>
+  <p>The empty-input case follows the literal ceiling formula; it is not exempt from raw security-query counting or execution metering. A 64-byte payload plus a 16-byte tag costs two units. A 64-byte output requires multiple calls: the input unit does not change the oracle's fixed 32-byte output.</p>
+  <p>This supersedes v0.14's 32-byte input units and one-unit minimum. Current receipts identify <code>rom256-input64-ceil-v1</code>. Older results are historical and must not be mixed with the new meter; regenerate certificates and receipts against the versioned statement.</p>
+
   <p>The planned execution model runs all stages in a single <strong>fully virtualized RISC-V environment</strong>, recording oracle work, memory accesses (loads and stores), and other executed instructions. A deployment surface supplies registered weights and resource caps. This is a common comparison model, not a claim that RISC-V instructions translate one-for-one into ARM wall-clock time.</p>
 
   <div class="tablewrap">
@@ -490,7 +504,7 @@
 
   <p>The intended payoff is reproducibility: a pinned binary, input, oracle-answer trace and metering profile produce the same counts. A new compiler or profile is a new comparison context, not silently interchangeable evidence. The target is to bind all four score factors and resource gates to the actual program. Today only the legacy verification metric and experimental graph schedules have the corresponding weighted-query proofs; full cycle metering and four-factor eligibility remain to implement.</p>
 
-  <p>A hash-work unit is <strong>not</strong> a concrete compression block or an instruction. Retain query lengths and domain-separation layout: padding, initialization, output expansion and the chosen hash affect execution cost. A fixed multiplier on the aggregate 32-byte work count is not generally an exact cycle conversion. The concrete-hash profile must account for that work once, without also double-charging instructions used to implement the same hash.</p>
+  <p>A hash-work unit is <strong>not</strong> a concrete compression block or an instruction, even though the input unit is now 64 bytes. Retain query lengths and domain-separation layout: concrete-hash padding, initialization, output expansion and the chosen hash affect execution cost. A fixed multiplier on the aggregate hash-work count is not generally an exact cycle conversion. The concrete-hash profile must account for that work once, without also double-charging instructions used to implement the same hash.</p>
   <p>The <a href="https://github.com/Verified-zkEVM/riscv-zkvm">riscv-zkvm interpreter</a> is the intended foundation. Oracle integration, metering and the connection between the Lean scheme and its executable still need implementation and proof. A verified trace would certify that execution under the selected model; it would not alone prove a worst-case bound over all inputs, randomness and oracle histories.</p>
 
   <h3><span class="secno">5.1</span>The verification views</h3>
@@ -546,7 +560,7 @@
   <p>The legacy MVP remains an engineering test profile, not either new leaderboard:</p>
   <ol>
     <li><strong>Classical ROM claim.</strong> The protected claim uses the 124-bit floor at 2<sup>20</sup> signing requests, correctness on success, a separate fresh-key signing-failure gate, exact signature size and the public-key cap. It does not enforce the idealized companion, lifetime decay or QROM rules.</li>
-    <li><strong>One oracle, no named hash.</strong> Variable-length input, <strong>N B → 32 B</strong>. The implemented verification meter charges <code>max(1, ceil(inputBytes / 32))</code>, including supplied domain-separation bytes; this convention remains <span class="tbd">under review before freeze</span>. The security game separately counts raw whole-experiment queries.</li>
+    <li><strong>One oracle, no named hash.</strong> Variable-length input, <strong>N B → 32 B</strong>. The implemented verification meter now charges <code>ceil(inputBytes / 64)</code> per call, including supplied domain-separation bytes, as pinned in §5. The security game separately counts raw whole-experiment queries, including empty inputs.</li>
     <li><strong>Legacy score.</strong> The three declared files remain <code>sigma.txt</code>, <code>hverify.txt</code> and <code>bound.txt</code>. Local success reports |σ| × H<sub>verify</sub>, explicitly unranked. The new K/S certificates and four-factor protected comparator are not yet implemented; do not submit additional metric files as though they were accepted.</li>
     <li><strong>Isolation, not deployment certification.</strong> The Linux sandbox, source capture, comparator, axiom audits, content-bound receipts and admission lock are implemented. RISC-V metering, wallet/presign/cache gates, signed verifier attestation and production registration are not.</li>
     <li><strong>No cryptographic baseline yet.</strong> Positive comparator fixtures prove only metric statements. Side-channel and fault-resistance certification also remains outside this engineering profile.</li>
@@ -648,7 +662,7 @@
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.14 · not yet reviewed by the leanSig authors · submissions not open · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.15 · not yet reviewed by the leanSig authors · submissions not open · comments to the lean-crypto channel
 </footer>
 
 </div>

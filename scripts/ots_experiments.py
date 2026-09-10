@@ -6,6 +6,7 @@ from collections import defaultdict
 from fractions import Fraction
 import json
 from math import comb
+from oracle_meter import hash_weight, meter_metadata
 
 
 def rank_key(size, keygen, signing, verification, beta):
@@ -34,8 +35,8 @@ def power(poly, exponent, max_cost, max_values):
 
 
 def hash_cost(blocks, profile):
-    """Blocks are 16 bytes. rom32 includes an experimental 16-byte gate address.
-    It is a layout assumption to formalize, not a change to the protected oracle.
+    """Blocks are 16 bytes; both ROM profiles add a 16-byte gate address.
+    rom32 is historical (32-byte input units); rom32-input64 uses the v0.15 meter.
     """
     if blocks < 1:
         raise ValueError("these graph families require nonempty inputs")
@@ -43,6 +44,8 @@ def hash_cost(blocks, profile):
         return (blocks + 3) // 4
     if profile == "rom32":
         return (16 + 16 * blocks + 31) // 32
+    if profile == "rom32-input64":
+        return hash_weight(16 + 16 * blocks)
     raise ValueError("unknown oracle profile")
 
 
@@ -136,7 +139,8 @@ def experiments(profile, bits=112, max_values=128, selection="product", include_
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", choices=["paper", "rom32"], required=True)
+    parser.add_argument("--profile", choices=["paper", "rom32", "rom32-input64"], required=True,
+                        help="rom32-input64 is current; rom32 and paper are historical comparisons")
     parser.add_argument("--beta", type=Fraction, default=Fraction(1, 4),
                         help="approved Stage 1 weight is 1/4; other values are research overrides")
     parser.add_argument("--signing-work", type=Fraction, required=True,
@@ -153,8 +157,12 @@ def main():
         if row["codebook_found"]:
             row["rank_key"] = str(rank_key(row["padded_signature_bytes"], row["keygen"],
                 args.signing_work, row["verification"], args.beta))
-    print(json.dumps({"schema": "leansphincs-ots-experiment-v1", "ranked": False,
+    meter = (meter_metadata() if args.profile == "rom32-input64" else
+             {"id": "rom256-input32-min1-v1" if args.profile == "rom32" else "paper-note-v1",
+              "historical": True})
+    print(json.dumps({"schema": "leansphincs-ots-experiment-v2", "ranked": False,
         "security_proved": False, "costs_certified": False, "profile": args.profile,
+        "hash_meter": meter,
         "beta": str(args.beta), "signing_work": str(args.signing_work),
         "experimental_weight_override": args.beta != Fraction(1, 4),
         "signing_kind": args.signing_kind,

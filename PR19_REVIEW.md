@@ -22,7 +22,7 @@ The concrete instance has 128-bit internal digests obtained by truncating a 256-
 | Signing result | `Option Signature`, with bounded retries | MVP now accepts `Option Bytes`; needs successful-output correctness and a separate ≤ 2⁻¹²⁸ failure certificate |
 | Secret generation | Independent uniform secret tables | Fits abstract secret-key freedom; says nothing yet about seed expansion or wallet memory |
 | Signature representation | Typed fields | Needs serialization, parsing, rejection of malformed encodings and SUF-preserving transport |
-| Verification score | Security counts raw oracle queries | Needs a separate proof charging every input by its 32-byte block weight |
+| Verification score | Security counts raw oracle queries | Needs a separate proof charging every input by its 64-byte input-unit weight (v0.15) |
 | Security bound | Completed 126-bit slope | Clears 124 numerically; transport still must bind the actual scheme and game |
 
 The same Lean 4.31.0 / VCVio `cbd4144b51d92da00dd50f05e068b2348fa6e529` pin removes a toolchain migration from this adapter's critical path. PR #19 therefore offers a concrete baseline route alongside the independent HashSig oracle-ization work. It does not justify raising the agreed 124-bit entry floor by itself.
@@ -41,21 +41,21 @@ The reduction uses that allowance in its stated bounded-query range, then extend
 
 ## Verification-cost translation
 
-The paper's cost table gives 497 raw verification hash calls. From the pinned statement's exact input layouts, the proposed 32-byte meter yields the following **source-level calculation**, still requiring a Lean query-bound proof over the byte adapter:
+The paper's cost table gives 497 raw verification hash calls. From the pinned statement's exact input layouts, the v0.15 meter `ceil(inputBytes / 64)` yields the following **source-level calculation**, still requiring a Lean query-bound proof over the byte adapter. The output remains 32 bytes; supplied domain-separation bytes are already included in these lengths:
 
 | Call family | Calls on a full verification path | Input bytes | Units |
 | --- | ---: | ---: | ---: |
-| Message digest | 1 | 96 | 3 |
-| FTS leaves | 14 | 48 | 28 |
-| FTS authentication nodes | 140 | 64 | 280 |
-| FTS roots hash | 1 | 256 | 8 |
-| WOTS encoding | 3 | 52 | 6 |
-| WOTS chain steps | 309 | 48 | 618 |
-| WOTS public-key leaves | 3 | 704 | 66 |
-| Hypertree authentication nodes | 26 | 64 | 52 |
-| Total | 497 | | 1,061 |
+| Message digest | 1 | 96 | 2 |
+| FTS leaves | 14 | 48 | 14 |
+| FTS authentication nodes | 140 | 64 | 140 |
+| FTS roots hash | 1 | 256 | 4 |
+| WOTS encoding | 3 | 52 | 3 |
+| WOTS chain steps | 309 | 48 | 309 |
+| WOTS public-key leaves | 3 | 704 | 33 |
+| Hypertree authentication nodes | 26 | 64 | 26 |
+| Total | 497 | | 531 |
 
-An accepted target-sum encoding leaves `42*7 - 191 = 103` chain steps per layer. Malformed digest/encoding branches return early, but a formal worst-case proof must cover those paths too. At 4,924 signature bytes this suggests an MVP product of 5,224,364; it is **not a certified or ranked score**. The raw-call and block-weighted metrics must not be substituted for each other.
+An accepted target-sum encoding leaves `42*7 - 191 = 103` chain steps per layer. Malformed digest/encoding branches return early, but a formal worst-case proof must cover those paths too. At 4,924 signature bytes this suggests a legacy MVP product of 2,614,644; it is **not a certified or ranked score**, and is not the new four-factor score. The raw-call and block-weighted metrics must not be substituted for each other. The earlier 1,061-unit estimate used the historical 32-byte input unit, not a different or faster algorithm; it must not be compared as though both estimates used one meter.
 
 ## Signing failure: adopted MVP policy (2026-09-06)
 

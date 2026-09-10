@@ -1,7 +1,7 @@
 # MVP submission contract
 
 Status: implementer guide for the staged harness, not an announcement that
-submissions or prizes are open. The canonical GitHub website source is v0.14.
+submissions or prizes are open. The canonical GitHub website source is v0.15.
 This document describes the unchanged legacy MVP contract, not a four-factor
 submission format. New keygen/signing certificates and a versioned comparator
 are still needed; do not add metric files that this contract does not admit.
@@ -54,8 +54,11 @@ are rejected. All theorem/algorithm axiom closures must stay within `propext`,
 Failed signing responses are visible and count against the signing-query budget.
 Only an exact successful message/signature pair is a replay. Security counts raw
 hash queries across the whole experiment; verification scoring instead charges
-`max(1, ceil(inputBytes / 32))` per call, including domain-separation bytes. This
-block convention remains staged for organizer review before freeze.
+`ceil(inputBytes / 64)` per call, including domain-separation bytes. The output
+remains 32 bytes; empty input costs 0 hash-work units but still consumes one raw
+security query. This v0.15 convention is pinned. Receipts identify it as
+`rom256-input64-ceil-v1`; historical 32-byte-unit receipts are not comparable.
+Rebuild cost certificates and regenerate receipts against the current statement.
 
 ## Declared metrics
 

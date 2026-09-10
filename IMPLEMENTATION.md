@@ -2,12 +2,17 @@
 
 Status: local review candidate, 2026-09-06. The published spec was updated to v0.13 on 2026-09-07 to carry the signing-failure decision (R8). This document records concrete implementation choices for review, not a change to competition governance.
 
-2026-09-10: the v0.14 website source describes two stages sharing
+2026-09-10: the v0.15 website source describes two stages sharing
 `size * signing * verification * keygen^(1/4)`, plus execution-cost views and hard
 gates. GitHub is now canonical by organizer decision; the earlier Claude artifact
 is a legacy copy, not a synchronized publication target. The implemented legacy claim and
 receipt still bind only `sigma * hverify`; new K/S certificate fields and a
 versioned comparator migration are required before four-factor eligibility.
+
+The v0.15 meter revision changes the protected `hashWeight` to `ceil(bytes / 64)`
+with no minimum for empty input; the raw security-query budget and output width
+are unchanged. Receipts label the new meter `rom256-input64-ceil-v1`. Rebuild
+proofs and regenerate receipts before comparing old results under this revision.
 
 Harness hardening (2026-09-07): verification now captures submission bytes once,
 uses private per-run projects and fresh candidate outputs, and produces
@@ -37,7 +42,7 @@ not a durable queue, aggregate disk quota or crash-surviving cgroup scheduler.
 
 ## WS2: oracle and game
 
-`Oracle.lean` pins byte-list inputs and 256-bit outputs, with one lazy random-oracle cache shared by key generation, adaptive adversarial hashing, signing and final verification. Fresh uniform sampling is a separate oracle. A hash input costs `max(1, (length + 31) / 32)` verification units, including domain-separation bytes. Empty and 1–32 byte inputs cost 1; 33–64 cost 2; 96 cost 3. Repeated calls are charged even when the ROM returns a cached answer.
+`Oracle.lean` pins byte-list inputs and 256-bit outputs, with one lazy random-oracle cache shared by key generation, adaptive adversarial hashing, signing and final verification. Fresh uniform sampling is a separate oracle. A hash input costs `(length + 63) / 64` verification units (natural-number division), including domain-separation bytes. Empty input costs 0; 1–64 bytes cost 1; 65–128 cost 2; 129 costs 3. Sum ceilings per call, not after aggregation. Repeated calls are charged even when the ROM returns a cached answer. Empty input still consumes a raw security query and execution work; zero hash-work weight is not a zero-cycle claim. `LeanSphincsTest/OracleMeter.lean` checks these distinctions.
 
 The security budget counts **raw calls across the whole experiment**; it excludes uniform sampling. This follows both reference statements. It is distinct from the score's block-weighted verification budget. This convention admits no adversary below the unavoidable honest-experiment cost; its security interpretation is the work/probability slope, as documented upstream.
 

@@ -12,9 +12,11 @@ abbrev HashOutput := BitVec 256
 abbrev HashSpec := Bytes →ₒ HashOutput
 abbrev OracleWorld := unifSpec + HashSpec
 
-/-- One unit per started 32-byte input block; even an empty query costs one.
-All input bytes, including domain separation and length encoding, are charged. -/
-def hashWeight (input : Bytes) : Nat := max 1 ((input.length + 31) / 32)
+/-- v0.15: ceil(input bytes / 64), with a fixed 32-byte oracle output.
+All supplied bytes, including domain separation and length encoding, are charged.
+An empty input has zero hash-work weight, but is still a raw security query;
+this abstract weight does not assert zero execution cost. -/
+def hashWeight (input : Bytes) : Nat := (input.length + 63) / 64
 
 /-- A worst-case structural bound, on every response path, including repeats. -/
 def HasVerifyCost {α : Type} (comp : OracleComp HashSpec α) (budget : Nat) : Prop :=
@@ -47,11 +49,15 @@ noncomputable def romImpl : QueryImpl OracleWorld (StateT (QueryCache HashSpec) 
 noncomputable def runROM {α : Type} (comp : OracleComp OracleWorld α) : ProbComp α :=
   (simulateQ romImpl comp).run' ∅
 
-#guard hashWeight [] = 1
+#guard hashWeight [] = 0
 #guard hashWeight (List.replicate 1 0) = 1
 #guard hashWeight (List.replicate 32 0) = 1
-#guard hashWeight (List.replicate 33 0) = 2
-#guard hashWeight (List.replicate 64 0) = 2
-#guard hashWeight (List.replicate 96 0) = 3
+#guard hashWeight (List.replicate 33 0) = 1
+#guard hashWeight (List.replicate 63 0) = 1
+#guard hashWeight (List.replicate 64 0) = 1
+#guard hashWeight (List.replicate 65 0) = 2
+#guard hashWeight (List.replicate 96 0) = 2
+#guard hashWeight (List.replicate 128 0) = 2
+#guard hashWeight (List.replicate 129 0) = 3
 
 end LeanSphincs.Benchmark

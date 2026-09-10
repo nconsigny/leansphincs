@@ -4,7 +4,20 @@ Status: draft for team review, 2026-09-02; local implementation progress added 2
 
 ## Local implementation progress (2026-09-06)
 
-2026-09-10 decisions and website draft: apply the four-factor objective with
+2026-09-10, v0.15 meter decision: arbitrary byte-string input, fixed 32-byte output,
+with `ceil(inputBytes / 64)` work per call, charging supplied domain-separation
+bytes. The literal ceiling assigns zero weight to empty input; raw security
+query counts and cycle accounting remain separate. This updates the protected
+`hashWeight` and invalidates cross-meter score comparisons, not the SUF-CMA
+game or proof assumptions. Receipts identify `rom256-input64-ceil-v1`;
+experiments use `rom32-input64`, preserving `rom32` as a historical profile.
+Boundary, repeat-charge and empty-query-budget regressions are included in Lean
+and host tests. The source-level annex and PR #19 estimates become 810 keygen
+units and 531 verification units respectively, not accepted cost certificates.
+Under fixed size/signing constraints, verification-minimizing search must allow
+Reed–Solomon-coded candidates, with no presumption that chains are optimal.
+
+2026-09-10, v0.14 decisions and publication: apply the four-factor objective with
 beta = 1/4 to both stages, retain hard usability gates and existing 45 s / 1.5 s
 wallet budgets, and expose full instruction/memory work alongside the hash view.
 Polynomial/Reed–Solomon coding is not excluded for being algebraic, but its
@@ -15,7 +28,7 @@ The earlier Claude artifact is a legacy copy, no longer a synchronized target;
 publication proceeds from this repo's `main` branch without waiting for it. The protected
 legacy claim is unchanged and does not certify the new K/S factors.
 
-Validation for this draft: 62 Python tests pass (including website decision/link
+Validation for v0.14: 62 Python tests passed (including website decision/link
 checks and annex arithmetic), `lake build LeanSphincs LeanSphincsTest` succeeds,
 and both protected/experimental axiom audits admit only standard axioms. Desktop
 and 390-pixel mobile previews were checked locally. None of these checks is a
@@ -26,7 +39,7 @@ OTS construction interface prematurely:
 
 1. Pin separately identified hash-work and execution profiles, including query
    byte layouts, instruction/memory accounting, signing-work quantifiers and
-   setup/delegation treatment. No fixed conversion from 32-byte work units to
+   setup/delegation treatment. No fixed conversion from abstract hash-work units to
    concrete compression blocks or cycles is assumed.
 2. Build an encoding-kernel comparison on matched profiles: existing chain/
    codebook operations and the supplied polynomial shape when its full algorithm
@@ -96,7 +109,7 @@ WS2, WS3 and WS4 now have a staged implementation in this checkout, documented i
 
 Verified again on 2026-09-07 after the previous session was cut off: the protected library builds, the axiom audit passes, the ten host-side contract tests pass, the signing-failure regression fixtures (always-failing signer rejected, invalid successful output rejected, failed requests charged to the signing budget, `none` never counts as replay) compile, the five comparator canary fixtures were recreated for the `Option Bytes` signing interface and all five real-comparator runs return the expected verdicts, and the PR #19 126-bit endpoint was reproduced locally with a standard-axiom footprint (see PR19_REVIEW.md). A `LeanSphincsTest.lean` root now lets `lake build LeanSphincsTest` succeed. This work was subsequently committed in `31a5f92`.
 
-The staged WS2 block convention is `max(1, ceil(inputBytes / 32))`, charging all supplied bytes, including domain separation. This is an implementation decision for review before freeze. The canonical GitHub spec source is v0.14 (2026-09-10), retaining the signing-failure decision introduced in v0.13; the block convention below is still an implementation choice for review. Repo home and merge rights remain deferred.
+The WS2 block convention is now pinned to `ceil(inputBytes / 64)`, charging all supplied bytes, including domain separation, with zero weight for empty input. This supersedes the staged 32-byte input unit and one-unit minimum. The canonical GitHub spec source is v0.15 (2026-09-10), retaining the signing-failure decision introduced in v0.13. Repo home and merge rights remain deferred.
 
 [leanVM-b PR #19](https://github.com/leanEthereum/leanVM-b/pull/19) supplies an additional, directly relevant stateless SUF-CMA proof route: a public 126-bit statement at 2²⁴ signing requests, with the same whole-experiment ROM accounting. See [PR19_REVIEW.md](PR19_REVIEW.md). It can shorten WS6 without waiting for WS1, but needs serialization, game/cap transport and block-weighted verification proofs. Its signer returns `Option Signature` after bounded grinding. Following discussion with Emile and organizer approval on 2026-09-06, the staged contract now admits explicit signing failure, with separate correctness-on-success and failure-probability ≤ 2⁻¹²⁸ obligations. This is a per-fixed-message, fresh-key/shared-ROM gate, not an adaptive lifetime guarantee. Baseline transport and production validation remain; the contract is not yet frozen for submissions.
 
@@ -170,7 +183,7 @@ Notes:
 **Phase 1, parallel.**
 
 - **WS1 — HashSig oracle-ization (library track; Quang and Alex's work).** Generalize the `Primitives` bundle so hash fields are monadic (`Thash : PkSeed → AdrsKey → List Y → m Y`), with the existing deterministic layer as the `Id` instantiation and a ROM instantiation over `OracleComp`. Existing concrete instances and KATs must keep compiling. Deliverable: WOTS/XMSS/FORS/hypertree components usable inside a `SigScheme`. Coordinate with the NIST + EasyCrypt-aligned rework already in progress; this plan should not duplicate that branch.
-- **WS2 — Benchmark core (`Oracle`, `SchemeInterface`, `Game`).** Port the xmss-fv Statement.lean shapes from concrete-XMSS to scheme-parametric. Decided (2026-09-02): SUF-CMA, and an N B → 32 B oracle with variable-length input; calls are weighted by input length in 32-byte blocks for the score, and the exact block convention is pinned here.
+- **WS2 — Benchmark core (`Oracle`, `SchemeInterface`, `Game`).** Port the xmss-fv Statement.lean shapes from concrete-XMSS to scheme-parametric. Decided (2026-09-02): SUF-CMA, and an N B → 32 B oracle with variable-length input. Updated and pinned (2026-09-10): `ceil(inputBytes / 64)` per call for the score, including domain separation; no minimum for empty input.
 - **WS3 — `Bound.lean`.** Standalone and small: coefficient lists, `evalBound`, `bitSecurity` as a computable function with `decide`-friendly lemmas, `#guard` unit tests. No dependencies on WS1/WS2; a good first PR.
 
 **Phase 2, after WS2 + WS3.**
@@ -185,7 +198,7 @@ Notes:
 ## Decisions (closed 2026-09-02 unless noted)
 
 1. **SUF-CMA** is the pinned notion (matches the xmss-fv precedent).
-2. **N B → 32 B oracle** with variable-length input; a fixed 96 B → 32 B would tailor the model to SHA-2. Score weight per call = input length in 32-byte blocks; the exact block convention (N versus N − 1 chaining units) is pinned in WS2.
+2. **N B → 32 B oracle** with variable-length input; a fixed 96 B → 32 B would tailor the model to SHA-2. Updated on 2026-09-10: score weight per call = `ceil(inputBytes / 64)`, including supplied domain-separation bytes. Empty input costs zero hash-work units but still counts as a raw security query. This replaces the earlier staged 32-byte work unit and one-unit minimum.
 3. **`sigma_size` is an equality**; fixed-length serialization, pad if needed.
 4. **Floor stays at 124** for the MVP; 127 remains the full-track ambition (spec OQ-7).
 5. Repo home and protected-module merge rights: **deferred**, to be settled before anyone submits.
