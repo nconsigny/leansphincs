@@ -5,6 +5,9 @@ open LeanSphincs.OTS
 example : stage1RankKey ⟨2, 16, 3, 5⟩ = 12960000 := by
   norm_num [stage1RankKey, rankKey]
 
+example : stage2RankKey ⟨2, 16, 3, 5⟩ = 12960000 := by
+  norm_num [stage2RankKey, rankKey]
+
 example : rankKey 1 4 ⟨2, 16, 3, 5⟩ = 12960000 := by
   norm_num [rankKey]
 

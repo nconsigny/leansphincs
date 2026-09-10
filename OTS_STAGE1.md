@@ -1,7 +1,8 @@
 # Stage 1: hash-graph OTS exploration
 
-Status: experimental implementation, 2026-09-09. Not an open competition,
-protected OTS claim, security proof or change to the published MVP rules.
+Status: experimental implementation, updated 2026-09-10. Not an open competition,
+protected OTS claim or security proof. The v0.14 website draft adopts the shared
+objective for both stages; the implemented legacy MVP claim remains unchanged.
 Emile's full SPHINCS reference and ongoing OTS work are not modified here.
 
 ## Objective decision
@@ -33,8 +34,22 @@ The probability space, retry bound, charged preprocessing and eventual binding
 theorem must be pinned. A separate availability theorem remains required.
 Expected signing cost cannot replace the worst-case whole-game security budget.
 
-The existing full-scheme MVP still scores `sigma * hverify`; this experiment does
-not replace `SchemeClaim`, its three-file contract, or either published spec.
+The organizer approved applying the same four-factor objective to Stage 2 on
+2026-09-10. `stage2RankKey` uses the same exact formula; this is not permission to
+compare primitives directly with complete schemes, or to mix metric profiles.
+The existing legacy full-scheme MVP still scores `sigma * hverify`; its
+`SchemeClaim` and three-file contract do not yet certify the new K/S factors.
+Website v0.14 is maintained on GitHub, the canonical source by organizer decision
+on 2026-09-10. The earlier Claude artifact is a legacy copy, not a synchronized
+publication target.
+
+Emile's polynomial-coding annex reinforces the need for full execution metering:
+field operations, codebook decoding and preprocessing are not free under a cycle
+profile. Keep the hash-work view and add the cycle-based four-factor view; enforce
+hard execution/memory gates before promotion. The definitive prize profile,
+weights and caps remain to calibrate. The existing 45 s / 1.5 s wallet budgets
+have not been replaced by the illustrative 5 minute / 5 second thresholds.
+See [POLYNOMIAL_CODING_REVIEW.md](POLYNOMIAL_CODING_REVIEW.md).
 
 ## Implemented foundations
 

@@ -4,6 +4,41 @@ Status: draft for team review, 2026-09-02; local implementation progress added 2
 
 ## Local implementation progress (2026-09-06)
 
+2026-09-10 decisions and website draft: apply the four-factor objective with
+beta = 1/4 to both stages, retain hard usability gates and existing 45 s / 1.5 s
+wallet budgets, and expose full instruction/memory work alongside the hash view.
+Polynomial/Reed–Solomon coding is not excluded for being algebraic, but its
+correlations and execution costs must be proved/metered. The final prize profile,
+cycle weights/caps and signing-work quantifier remain open. Website v0.14 is
+maintained on GitHub, now canonical by explicit organizer decision (2026-09-10).
+The earlier Claude artifact is a legacy copy, no longer a synchronized target;
+publication proceeds from this repo's `main` branch without waiting for it. The protected
+legacy claim is unchanged and does not certify the new K/S factors.
+
+Validation for this draft: 62 Python tests pass (including website decision/link
+checks and annex arithmetic), `lake build LeanSphincs LeanSphincsTest` succeeds,
+and both protected/experimental axiom audits admit only standard axioms. Desktop
+and 390-pixel mobile previews were checked locally. None of these checks is a
+deployment, a complete cycle certificate or acceptance of a cryptographic entry.
+
+Next execution-accounting work, coordinated with Emile rather than changing his
+OTS construction interface prematurely:
+
+1. Pin separately identified hash-work and execution profiles, including query
+   byte layouts, instruction/memory accounting, signing-work quantifiers and
+   setup/delegation treatment. No fixed conversion from 32-byte work units to
+   concrete compression blocks or cycles is assumed.
+2. Build an encoding-kernel comparison on matched profiles: existing chain/
+   codebook operations and the supplied polynomial shape when its full algorithm
+   is available. Retain operation counts, measured timings and proved bounds as
+   distinct evidence; no hash-only result establishes a latency improvement.
+3. Bind the executable to the Lean oracle scheme, then prove complete K/S/V and
+   memory bounds, including malformed inputs and bounded retry exhaustion.
+   Connect the failure-envelope premise to the actual adaptive ROM/cache game.
+4. Version the stage-specific claim and comparator to bind all four factors.
+   Keep the current three-file MVP unranked until that transition and the
+   baseline/launch gates are complete. See [annex review](POLYNOMIAL_CODING_REVIEW.md).
+
 2026-09-09 OTS exploration: the organizer requests a four-factor objective
 `size * signing * verification * keygen^beta`, with lower keygen weight. Beta = 1/4
 is now approved; expected-versus-worst-case signing semantics remain pending. Experimental exact
@@ -61,7 +96,7 @@ WS2, WS3 and WS4 now have a staged implementation in this checkout, documented i
 
 Verified again on 2026-09-07 after the previous session was cut off: the protected library builds, the axiom audit passes, the ten host-side contract tests pass, the signing-failure regression fixtures (always-failing signer rejected, invalid successful output rejected, failed requests charged to the signing budget, `none` never counts as replay) compile, the five comparator canary fixtures were recreated for the `Option Bytes` signing interface and all five real-comparator runs return the expected verdicts, and the PR #19 126-bit endpoint was reproduced locally with a standard-axiom footprint (see PR19_REVIEW.md). A `LeanSphincsTest.lean` root now lets `lake build LeanSphincsTest` succeed. This work was subsequently committed in `31a5f92`.
 
-The staged WS2 block convention is `max(1, ceil(inputBytes / 32))`, charging all supplied bytes, including domain separation. This is an implementation decision for review before freeze. The public spec is at v0.13 (2026-09-07), which carries the signing-failure decision; the block convention below is still an implementation choice for review. Repo home and merge rights remain deferred.
+The staged WS2 block convention is `max(1, ceil(inputBytes / 32))`, charging all supplied bytes, including domain separation. This is an implementation decision for review before freeze. The canonical GitHub spec source is v0.14 (2026-09-10), retaining the signing-failure decision introduced in v0.13; the block convention below is still an implementation choice for review. Repo home and merge rights remain deferred.
 
 [leanVM-b PR #19](https://github.com/leanEthereum/leanVM-b/pull/19) supplies an additional, directly relevant stateless SUF-CMA proof route: a public 126-bit statement at 2²⁴ signing requests, with the same whole-experiment ROM accounting. See [PR19_REVIEW.md](PR19_REVIEW.md). It can shorten WS6 without waiting for WS1, but needs serialization, game/cap transport and block-weighted verification proofs. Its signer returns `Option Signature` after bounded grinding. Following discussion with Emile and organizer approval on 2026-09-06, the staged contract now admits explicit signing failure, with separate correctness-on-success and failure-probability ≤ 2⁻¹²⁸ obligations. This is a per-fixed-message, fresh-key/shared-ROM gate, not an adaptive lifetime guarantee. Baseline transport and production validation remain; the contract is not yet frozen for submissions.
 

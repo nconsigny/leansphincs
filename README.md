@@ -1,6 +1,23 @@
 # leanSPHINCS
 
-The [competition spec](https://nconsigny.github.io/leansphincs/) is at draft v0.13. This checkout also stages the WS2–WS4 MVP statement and harness. The permanent challenge home, protected-module governance and independent verifier registration remain deferred.
+The [competition site](https://nconsigny.github.io/leansphincs/) carries draft
+v0.14: Stage 1 searches OTS primitives; Stage 2 composes complete
+stateless schemes. Both use `size * signing * verification * keygen^(1/4)`, with
+hard usability gates and separate hash-work/cycle profiles.
+
+**GitHub is canonical**, by organizer decision on 2026-09-10. This repository's
+`index.html` is the spec source, published from `main` to GitHub Pages. The earlier
+Claude artifact is a legacy copy, is no longer maintained as a synchronized
+mirror, and must not be used as the current rules. Publication no longer waits
+for a Claude update.
+
+See [OTS foundations and proof milestones](OTS_STAGE1.md) and the
+[polynomial-coding review](POLYNOMIAL_CODING_REVIEW.md).
+
+This checkout contains the legacy WS2–WS4 MVP statement/harness and experimental
+OTS proofs, not an open leaderboard or a complete four-factor claim. The permanent
+challenge home, protected-module governance and independent verifier registration
+remain deferred.
 
 The implementation builds against Lean 4.31.0 and the same pinned VCVio revision as the XMSS and SPHINCS proof references. It contains the shared random-oracle SUF-CMA game, exact rational bound evaluator with a proved endpoint test, byte-exact size and weighted verification claims, and a comparator with one scheme-definition hole.
 
@@ -16,11 +33,15 @@ For a candidate, put `Scheme.lean`, `Solution.lean`, `sigma.txt`, `hverify.txt` 
 
 The default Linux profile requires Landlock ABI ≥ 8 and a user systemd instance; active filesystem/network probes must pass. Run `bash setup.sh`, then `python3 scripts/test-verifier.py` for the real submission-path rejection tests. An explicit `BENCHMARK_INSECURE_LOCAL=1` permits an organizer-owned unsandboxed diagnostic. Neither path produces an authoritative ranking. See [trust boundary and launch gates](HARNESS_SECURITY.md).
 
-The positive comparator canary proves only metric statements; it is **not baseline #0** and makes no security claim. Intentional `sorry` and axiom fixtures live outside the protected library and are rejected by the production import policy.
+The legacy receipt still scores only `sigma * hverify` and is unranked. The
+positive comparator canary proves only metric statements; it is **not baseline #0**
+and makes no security claim. Baseline #0 is intended to be an eligible SPHINCS⁻
+variant. Intentional `sorry` and axiom fixtures live outside the protected library
+and are rejected by the production import policy.
 
 Signing may explicitly return `none`. The claim separately requires correctness on success and failure probability ≤ 2⁻¹²⁸ for each fixed message under fresh key generation and a shared ROM; a 2⁻²⁵⁶ certificate also qualifies. This does not assert adaptive lifetime availability.
 
-See [implementation contract](IMPLEMENTATION.md), [PR #19 compatibility review](PR19_REVIEW.md), and the [workstream plan](SCHEMECLAIM_PLAN.md). Baseline transport, production validation and review of the staged block convention remain before freezing submissions. The signing-failure decision is published in spec v0.13 (R8) on both targets.
+See [implementation contract](IMPLEMENTATION.md), [PR #19 compatibility review](PR19_REVIEW.md), and the [workstream plan](SCHEMECLAIM_PLAN.md). Baseline transport, production validation and review of the staged block convention remain before freezing submissions. The signing-failure decision first appeared in spec v0.13 (R8) on both then-synchronized targets; subsequent revisions are maintained on GitHub.
 
 For implementers: [submission format and proof obligations](SUBMISSION.md).
 For operators: [sandbox profile, test commands and launch gates](HARNESS_SECURITY.md).

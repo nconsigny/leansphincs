@@ -1,6 +1,7 @@
 import Mathlib.Tactic
 
-/-! Experimental OTS objective only. Not imported by the protected MVP Target.
+/-! Experimental four-factor objective for both research stages.
+Not imported by the protected MVP Target.
 Metrics still need certificates binding them to an actual scheme. -/
 
 namespace LeanSphincs.OTS
@@ -49,5 +50,11 @@ theorem quarterKey (c : Costs) :
 
 /-- The approved Stage 1 ranking key. Signing semantics still require a profile. -/
 def stage1RankKey (c : Costs) : ℚ := rankKey 1 4 c
+
+/-- The same formula for complete schemes, approved 2026-09-10. Stage-specific
+game and metric certificates are still required; stages are not cross-ranked. -/
+def stage2RankKey (c : Costs) : ℚ := rankKey 1 4 c
+
+theorem stage2RankKey_eq_stage1 (c : Costs) : stage2RankKey c = stage1RankKey c := rfl
 
 end LeanSphincs.OTS

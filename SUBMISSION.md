@@ -1,7 +1,10 @@
 # MVP submission contract
 
 Status: implementer guide for the staged harness, not an announcement that
-submissions or prizes are open. The repository's competition spec is v0.13.
+submissions or prizes are open. The canonical GitHub website source is v0.14.
+This document describes the unchanged legacy MVP contract, not a four-factor
+submission format. New keygen/signing certificates and a versioned comparator
+are still needed; do not add metric files that this contract does not admit.
 
 ## Package
 

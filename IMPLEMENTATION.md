@@ -2,6 +2,13 @@
 
 Status: local review candidate, 2026-09-06. The published spec was updated to v0.13 on 2026-09-07 to carry the signing-failure decision (R8). This document records concrete implementation choices for review, not a change to competition governance.
 
+2026-09-10: the v0.14 website source describes two stages sharing
+`size * signing * verification * keygen^(1/4)`, plus execution-cost views and hard
+gates. GitHub is now canonical by organizer decision; the earlier Claude artifact
+is a legacy copy, not a synchronized publication target. The implemented legacy claim and
+receipt still bind only `sigma * hverify`; new K/S certificate fields and a
+versioned comparator migration are required before four-factor eligibility.
+
 Harness hardening (2026-09-07): verification now captures submission bytes once,
 uses private per-run projects and fresh candidate outputs, and produces
 content-bound unranked receipts. The default Linux path replaces the inherited
@@ -56,7 +63,7 @@ For fixed signing budget and `Q = 2^bits`, `MeetsFloor` checks `B(1) ≤ 1/Q` an
 
 ## WS4: claim and comparator
 
-`SchemeClaim S sigma hverify coeffs` bundles correctness on success, the separate 128-bit signing-failure gate, positive scored metrics, exact successful-signature size, public-key size, the worst-case weighted verification bound, a canonical SUF-CMA bound, and the 124-bit endpoint gate. `SchemeClaim.security_le` derives the advertised probability inequality in Lean. The MVP score is the exact integer `sigma * hverify`, with signature size as the tie-break; α = 1.25 belongs to the full competition.
+`SchemeClaim S sigma hverify coeffs` bundles correctness on success, the separate 128-bit signing-failure gate, positive scored metrics, exact successful-signature size, public-key size, the worst-case weighted verification bound, a canonical SUF-CMA bound, and the 124-bit endpoint gate. `SchemeClaim.security_le` derives the advertised probability inequality in Lean. The legacy MVP score is the exact integer `sigma * hverify`, with signature size as the tie-break. The new two-stage four-factor objective supersedes the earlier proposed full-track size exponent, but is not yet this protected claim's score.
 
 Submissions import `LeanSphincs.Benchmark.Target`, trusted `Mathlib`, `VCVio`, `HashSig` modules, and flat local helpers. Only `.lean` and the three named metric files are admitted. Limits are 1,000 files, 4 MiB per file and 10 MiB total. Source checks reject nested directories, symlinks, dynamic import/elaboration constructs and `native_decide`. The independent verifier must reproduce this policy before opening submissions.
 
