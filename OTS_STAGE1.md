@@ -20,6 +20,16 @@ The command defaults to the approved quarter weight; other beta values are
 explicitly labelled research overrides. Signing semantics and the declared work
 remain required arguments. This weight decision does not freeze the whole profile.
 
+Superseded on 2026-09-10 (spec v0.16): the rules objective is now
+`signatureBytes * verificationWork`, with signing and keygen work fixed as hard
+budgets (1.5 s signing, 1 minute keygen at the wallet anchor); the oracle meter is
+unchanged. Stage 1 is the academic research track on pure hash work; Stage 2 is the
+Ethereum selection. The four-factor rank key below is retained only as an
+exploratory research view; it no longer defines any leaderboard. The Stage 1 board
+shows a Spacetime tab (ranking by signature bytes × verification work at the fixed
+budgets, the CLI's product selection) and a Pareto tab (the size/verification
+frontier at those budgets, `--include-frontier`).
+
 For rational `beta = a/b`, compare the exact rational key
 `(signatureBytes * signingWork * verificationWork)^b * keygenWork^a`.
 For positive quantities, taking the b-th power preserves the ordering. No
@@ -48,8 +58,8 @@ Emile's polynomial-coding annex reinforces the need for full execution metering:
 field operations, codebook decoding and preprocessing are not free under a cycle
 profile. Keep the hash-work view and add the cycle-based four-factor view; enforce
 hard execution/memory gates before promotion. The definitive prize profile,
-weights and caps remain to calibrate. The existing 45 s / 1.5 s wallet budgets
-have not been replaced by the illustrative 5 minute / 5 second thresholds.
+weights and caps remain to calibrate. The wallet budgets are 1 minute keygen / 1.5 s signing as of v0.16; the
+illustrative 5 minute / 5 second thresholds were not adopted.
 See [POLYNOMIAL_CODING_REVIEW.md](POLYNOMIAL_CODING_REVIEW.md).
 
 At fixed signature size and signing budget, the conditional objective can be
@@ -149,8 +159,8 @@ code does not implement the decoder or prove this SUF-preserving serialization.
 
 ## Next proof milestones, in order
 
-1. Beta = 1/4 is approved. Agree signing semantics and pin hard signing/keygen
-   budgets separately.
+1. Signing and keygen budgets are fixed (v0.16: 1.5 s / 1 minute at the anchor;
+   Stage 1 fractions still to pin). Beta = 1/4 survives only in the research view.
 2. Address serialization and actual oracle evaluation/metering are implemented.
    Reconstruction against an oracle-consistent reference is now proved. Next
    construct that reference from randomized keygen and transport through the ROM; instantiate each

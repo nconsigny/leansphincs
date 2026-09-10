@@ -82,14 +82,18 @@ python3 -m unittest discover -s tests -v
 
 ## Decisions applied on 2026-09-10
 
-Both stages use `size * signing * verification * keygen^(1/4)`. This formula may
+Update, spec v0.16 (later the same day): both stages now minimize
+`size * verification`, with signing and keygen work fixed as hard budgets (1.5 s
+signing, 1 minute keygen). The four-factor formula below is retained as a research
+view only.
+
+Both stages used `size * signing * verification * keygen^(1/4)` in v0.14/v0.15. This formula may
 be instantiated with separately identified hash-work and execution-cost profiles.
 Do not mix units or expected/worst-case signing semantics on one board. Preserve
 the full frontier; do not proclaim the hash-minimal shape a practical winner.
 
 Hard keygen/signing latency, verification execution and memory gates remain
-required for promotion. Keep the existing 45-second keygen / 1.5-second signing
-wallet budgets pending an explicit replacement decision. Their implementation
+required for promotion. The wallet budgets are 1 minute keygen / 1.5-second signing as of v0.16. Their implementation
 and the cycle profile remain launch work. The final award profile and expected-
 versus-worst-case signing score remain open; worst-case failure probability is
 a separate proof obligation.

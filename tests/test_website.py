@@ -75,15 +75,18 @@ class WebsiteTests(unittest.TestCase):
         self.assertGreater(checked, 0)
 
     def test_version_and_shared_objective(self):
-        self.assertIn("DRAFT v0.15", self.source)
-        self.assertIn("draft rules v0.15", self.source)
+        self.assertIn("DRAFT v0.16", self.source)
+        self.assertIn("draft rules v0.16", self.source)
+        self.assertIn('<span class="formula-big">minimize&nbsp;&nbsp;|σ| × V</span>', self.source)
+        self.assertIn("Stage 1 is academic research; Stage 2 is the Ethereum selection.", self.source)
         objective = self.page.section_text("objective")
         self.assertIn("both stages", objective)
-        self.assertIn("(|σ| * S * V)^4 * K", objective)
-        self.assertIn("β = 1/4", objective)
-        self.assertIn("Expected versus worst-case signing work", objective)
+        self.assertIn("|σ| * V", objective)
+        self.assertIn("fixes signing work and keygen work as hard budgets", objective)
+        self.assertIn("1.5 s signing, 1 minute keygen", objective)
+        self.assertIn("worst-case cap", objective)
         self.assertIn("not directly comparable", objective)
-        self.assertIn("With signature size and signing budget fixed", objective)
+        self.assertIn("Fixed-budget search is now the objective itself", objective)
         self.assertIn("Hash chains are not assumed optimal", objective)
 
     def test_github_is_canonical(self):
@@ -99,15 +102,20 @@ class WebsiteTests(unittest.TestCase):
         self.assertIn("ceil(inputBytes / 64)", cost)
         self.assertIn("including domain separation", cost)
         self.assertIn("rom256-input64-ceil-v1", cost)
+        self.assertIn("v0.16 changes the ranking only and leaves this meter unchanged", cost)
         self.assertIn("Sum the per-call ceilings", cost)
         self.assertIn("empty-input case follows the literal ceiling", cost)
         self.assertNotIn("ceil(inputBytes / 32)", self.source)
 
-    def test_no_false_launch_or_four_factor_harness_claim(self):
+    def test_no_false_launch_or_budget_certificate_claim(self):
         self.assertIn("submissions not open", self.source)
         mvp = self.page.section_text("mvp")
         self.assertIn("explicitly unranked", mvp)
-        self.assertIn("four-factor protected comparator are not yet implemented", mvp)
+        self.assertIn("does not yet bind the signing and keygen budget certificates", mvp)
+        self.assertIn("Spacetime", mvp)
+        self.assertIn("Pareto", mvp)
+        self.assertIn("Stage 1 is the academic research track", mvp)
+        self.assertIn("Stage 2 is the Ethereum selection track", mvp)
         self.assertIn("sigma.txt", mvp)
         self.assertIn("hverify.txt", mvp)
         self.assertIn("bound.txt", mvp)
@@ -116,7 +124,8 @@ class WebsiteTests(unittest.TestCase):
     def test_coding_cost_and_availability_boundaries(self):
         rules = self.page.section_text("rules")
         self.assertIn("Reed–Solomon coding are permitted", rules)
-        self.assertIn("key generation ≤ 45 s and signing ≤ 1.5 s", rules)
+        self.assertIn("key generation ≤ 1 minute and signing ≤ 1.5 s", rules)
+        self.assertIn("key generation moves from 45 s to 1 minute", rules)
         self.assertIn("Worst-case failure analysis is separate", rules)
         self.assertIn("not an adaptive lifetime-availability guarantee", rules)
         self.assertIn("not enforced by the current legacy MVP harness", rules)

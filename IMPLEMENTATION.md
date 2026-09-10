@@ -2,12 +2,12 @@
 
 Status: local review candidate, 2026-09-06. The published spec was updated to v0.13 on 2026-09-07 to carry the signing-failure decision (R8). This document records concrete implementation choices for review, not a change to competition governance.
 
-2026-09-10: the v0.15 website source describes two stages sharing
-`size * signing * verification * keygen^(1/4)`, plus execution-cost views and hard
-gates. GitHub is now canonical by organizer decision; the earlier Claude artifact
+2026-09-10: the v0.16 website source describes two stages sharing the objective
+`size * verification`, with signing and keygen work fixed as hard budgets (1.5 s
+signing, 1 minute keygen at the anchor), plus execution-cost views and hard gates. GitHub is now canonical by organizer decision; the earlier Claude artifact
 is a legacy copy, not a synchronized publication target. The implemented legacy claim and
-receipt still bind only `sigma * hverify`; new K/S certificate fields and a
-versioned comparator migration are required before four-factor eligibility.
+receipt still bind only `sigma * hverify`; new K/S budget-certificate fields and a
+versioned comparator migration are required before full eligibility.
 
 The v0.15 meter revision changes the protected `hashWeight` to `ceil(bytes / 64)`
 with no minimum for empty input; the raw security-query budget and output width

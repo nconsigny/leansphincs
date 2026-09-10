@@ -1,9 +1,14 @@
 # leanSPHINCS
 
 The [competition site](https://nconsigny.github.io/leansphincs/) carries draft
-v0.15: Stage 1 searches OTS primitives; Stage 2 composes complete
-stateless schemes. Both use `size * signing * verification * keygen^(1/4)`, with
-hard usability gates and separate hash-work/cycle profiles.
+v0.16: Stage 1 is the academic research track, searching OTS primitives on
+pure hash work (oracle calls weighted by input bytes / 64); Stage 2 is the
+Ethereum selection track, composing complete stateless schemes under every
+deployment gate. Both minimize `size * verification`, with signing work and
+keygen work fixed as hard budgets (1.5 s signing, 1 minute keygen at the wallet
+anchor), plus the other usability gates and separate hash-work/cycle profiles.
+The Stage 1 board has a Spacetime tab (the ranking) and a Pareto tab (the
+size/verification frontier at the fixed budgets).
 
 The oracle accepts arbitrary-length inputs and returns **32 bytes**. Hash work is
 now `ceil(inputBytes / 64)` per call, including domain-separation bytes; empty
@@ -23,7 +28,7 @@ See [OTS foundations and proof milestones](OTS_STAGE1.md) and the
 [polynomial-coding review](POLYNOMIAL_CODING_REVIEW.md).
 
 This checkout contains the legacy WS2–WS4 MVP statement/harness and experimental
-OTS proofs, not an open leaderboard or a complete four-factor claim. The permanent
+OTS proofs, not an open leaderboard or a complete competition claim with budget certificates. The permanent
 challenge home, protected-module governance and independent verifier registration
 remain deferred.
 

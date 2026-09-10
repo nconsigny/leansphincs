@@ -17,6 +17,18 @@ units and 531 verification units respectively, not accepted cost certificates.
 Under fixed size/signing constraints, verification-minimizing search must allow
 Reed–Solomon-coded candidates, with no presumption that chains are optimal.
 
+2026-09-10, v0.16 decision: the objective returns to `size * verification`.
+Signing work and keygen work are fixed as hard budgets rather than scored: signing
+stays at 1.5 s, keygen moves from 45 s to 1 minute at the 160 MHz anchor (hash-work
+view: about 8.5 × 10^4 and 3.4 × 10^6 units). The oracle meter is unchanged
+(`ceil(inputBytes / 64)`, 32-byte output). Stage 1 is framed as academic research
+on pure hash work; Stage 2 is the Ethereum selection. The v0.14 four-factor
+objective and beta = 1/4 are superseded; the OTS experiment CLI keeps its rank key
+as a research view only. The Stage 1 board gets two tabs, Spacetime (ranking) and
+Pareto (size/verification frontier at the fixed budgets). The legacy
+`sigma * hverify` score now coincides with the objective; the S/K budget
+certificates and their comparator binding remain to implement.
+
 2026-09-10, v0.14 decisions and publication: apply the four-factor objective with
 beta = 1/4 to both stages, retain hard usability gates and existing 45 s / 1.5 s
 wallet budgets, and expose full instruction/memory work alongside the hash view.
@@ -48,7 +60,7 @@ OTS construction interface prematurely:
 3. Bind the executable to the Lean oracle scheme, then prove complete K/S/V and
    memory bounds, including malformed inputs and bounded retry exhaustion.
    Connect the failure-envelope premise to the actual adaptive ROM/cache game.
-4. Version the stage-specific claim and comparator to bind all four factors.
+4. Version the stage-specific claim and comparator to bind the two score factors and the signing/keygen budget certificates.
    Keep the current three-file MVP unranked until that transition and the
    baseline/launch gates are complete. See [annex review](POLYNOMIAL_CODING_REVIEW.md).
 
