@@ -17,6 +17,7 @@ import time
 
 from benchmark_contract import metrics, render
 from oracle_meter import meter_metadata
+from scoring_policy import CLAIM_ID, load_scoring_profile, score_entry
 from sandbox_profile import systemd_command
 from source_bundle import capture, manifest, materialize
 from worker_admission import WorkerBusy, worker_slot
@@ -163,6 +164,7 @@ def verify(submission: Path, insecure: bool = False) -> tuple[dict, Path]:
     except WorkerBusy as error:
         now = int(time.time())
         report = {"schema": "leansphincs-verification-v1", "ranked": False,
+                  "claim_version": CLAIM_ID,
                   "hash_meter": meter_metadata(),
                   "profile": "insecure-local" if insecure else "leansphincs-linux-v1",
                   "status": "worker_busy", "stage": "admission", "retryable": True,
@@ -179,6 +181,7 @@ def _verify_admitted(submission: Path, insecure: bool = False) -> tuple[dict, Pa
     directory = Path(tempfile.mkdtemp(prefix="run-", dir=result_root))
     os.chmod(directory, 0o700)
     report = {"schema": "leansphincs-verification-v1", "ranked": False,
+              "claim_version": CLAIM_ID,
               "hash_meter": meter_metadata(),
               "profile": "insecure-local" if insecure else "leansphincs-linux-v1",
               "status": "infrastructure_error", "started_unix": int(time.time())}
@@ -196,6 +199,7 @@ def _verify_admitted(submission: Path, insecure: bool = False) -> tuple[dict, Pa
         report["metrics"] = {"sigma": sigma, "hverify": hverify, "bound": bound}
         stage = "setup"
         report["harness"] = harness_manifest()
+        report["scoring_profile"] = load_scoring_profile(ROOT / "benchmark/scoring.json")
         report["dependencies"] = check_dependencies()
         lean = Path(subprocess.check_output(["lean", "--print-prefix"], cwd=ROOT, text=True).strip())
         tool_paths = {"comparator": COMPARATOR / ".lake/build/bin/comparator",
@@ -241,7 +245,11 @@ def _verify_admitted(submission: Path, insecure: bool = False) -> tuple[dict, Pa
         check_integrity(project, report, tool_paths)
         report["status"] = "accepted" if code == 0 else "verification_failed"
         if code == 0:
-            report["score"] = {"value": str(sigma * hverify), "direction": "minimize", "tie_break": sigma}
+            score = score_entry(report["scoring_profile"], sigma, hverify)
+            if score is None:
+                report["score_pending"] = "bandwidth coefficient not calibrated"
+            else:
+                report["score"] = score
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         report.pop("score", None)
         report["status"] = "source_rejected" if stage in {"capture", "source_policy"} else "infrastructure_error"

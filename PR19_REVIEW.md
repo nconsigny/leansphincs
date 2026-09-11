@@ -1,6 +1,24 @@
 # PR #19 and the MVP statement
 
-Reviewed source: [leanEthereum/leanVM-b PR #19](https://github.com/leanEthereum/leanVM-b/pull/19), `sphincs-fv` head `a1daec3b929d8963b4eee4f1e05985065a96de9d`, observed 2026-09-06. The PR is open. Its description says 126 bits are proved and 127 is work in progress. This review concerns statement compatibility and the completed theorem path; it is not an audit of every ongoing 127-bit reduction.
+Reviewed source: [leanEthereum/leanVM-b PR #19](https://github.com/leanEthereum/leanVM-b/pull/19), `sphincs-fv` head `a1daec3b929d8963b4eee4f1e05985065a96de9d`, observed 2026-09-06. At that observation the PR was open. Its description said 126 bits are proved and 127 is work in progress. This review concerns statement compatibility and the completed theorem path; it is not an audit of every ongoing 127-bit reduction.
+
+## Current adapter requirements (2026-09-11, draft v0.17)
+
+The reviewed upstream revision remains pinned; no new upstream reproduction is
+claimed here. The competition now requires a 32-byte public key and a security
+bound in total work Q = qH + qS, with challenger hashes included in qH.
+The same scheme and parameters must have a theorem covering up to 2^32 requests,
+plus 124-bit and 100-bit endpoint floors at 2^20 and 2^32 respectively.
+
+The existing 126-bit theorem at 2^24 requests can support the normal cap after
+a game transport and qH <= Q weakening. It **cannot establish the extended
+2^32-request lifetime** without additional security work. Numerical evaluation
+of the same slope at that cap is not proof transport.
+
+The additive objective is `c * signatureBytes + verificationWork`, with c
+pending calibration and no scalar score yet. Signing/keygen are hard resource
+gates, not score factors; full-program budget certificates remain unfinished.
+All statements below about upstream results refer to the pinned snapshot.
 
 ## What is actually stated
 
@@ -18,18 +36,21 @@ The concrete instance has 128-bit internal digests obtained by truncating a 256-
 | Security notion | SUF-CMA, repeated messages allowed | Same winning condition |
 | Statelessness | No epoch or mutable signing state | Same |
 | Hash budget | Keygen + adversary + signing + final verify; coins excluded | Same, separate from scored weighted cost |
-| Signing budget | Transcript-length gate at 2²⁴ | Structural adversary bound at 2²⁰; requires a game/cap transport lemma |
+| Signing budget | Transcript-length gate at 2²⁴ | Normal 2²⁰ cap needs transport; extended 2³² cap needs an additional same-scheme security argument |
 | Signing result | `Option Signature`, with bounded retries | MVP now accepts `Option Bytes`; needs successful-output correctness and a separate ≤ 2⁻¹²⁸ failure certificate |
 | Secret generation | Independent uniform secret tables | Fits abstract secret-key freedom; says nothing yet about seed expansion or wallet memory |
 | Signature representation | Typed fields | Needs serialization, parsing, rejection of malformed encodings and SUF-preserving transport |
 | Verification score | Security counts raw oracle queries | Needs a separate proof charging every input by its 64-byte input-unit weight (v0.15) |
-| Security bound | Completed 126-bit slope | Clears 124 numerically; transport still must bind the actual scheme and game |
+| Security bound | Completed 126-bit raw-hash slope | Normal total-work gate can be weakened after transport; no proof at 2³² follows |
 
 The same Lean 4.31.0 / VCVio `cbd4144b51d92da00dd50f05e068b2348fa6e529` pin removes a toolchain migration from this adapter's critical path. PR #19 therefore offers a concrete baseline route alongside the independent HashSig oracle-ization work. It does not justify raising the agreed 124-bit entry floor by itself.
 
 ## Numerical bridge
 
-The public slope can be encoded exactly as `4*qH / 2^128`, with `bound.txt` equal to `[[4,1,1,0,128]]`. This is 126 bits and passes the MVP's 124-bit floor. The declaration has no `qS` term because the upstream theorem already quantifies over its fixed 2²⁴-request game; a cap-transport proof is still required before using it at 2²⁰.
+The public slope is `4*qH / 2^128`. After a game transport, qH <= Q lets it
+be weakened to `4*Q / 2^128`, declared as `[[4,1,1,0,128]]`.
+This passes the numerical floors, but the lack of a qS term does not extend the
+upstream theorem beyond its 2^24-request game. A proof at 2^32 is still required.
 
 [`Security126RefinedEndpoint.lean`](https://github.com/leanEthereum/leanVM-b/blob/a1daec3b929d8963b4eee4f1e05985065a96de9d/formal/sphincs/SphincsSecurity/Proof/Security126RefinedEndpoint.lean) checks the more detailed allowance
 
@@ -55,7 +76,9 @@ The paper's cost table gives 497 raw verification hash calls. From the pinned st
 | Hypertree authentication nodes | 26 | 64 | 26 |
 | Total | 497 | | 531 |
 
-An accepted target-sum encoding leaves `42*7 - 191 = 103` chain steps per layer. Malformed digest/encoding branches return early, but a formal worst-case proof must cover those paths too. At 4,924 signature bytes this suggests a legacy MVP product of 2,614,644; it is **not a certified or ranked score**, and is not the new four-factor score. The raw-call and block-weighted metrics must not be substituted for each other. The earlier 1,061-unit estimate used the historical 32-byte input unit, not a different or faster algorithm; it must not be compared as though both estimates used one meter.
+An accepted target-sum encoding leaves `42*7 - 191 = 103` chain steps per layer. Malformed digest/encoding branches return early, but a formal worst-case proof must cover those paths too. At 4,924 signature bytes this gives the hypothetical additive expression
+`4924*c + 531`, not a certified or ranked score; c is not calibrated.
+The historical product 2,614,644 is no longer the objective. The raw-call and block-weighted metrics must not be substituted for each other. The earlier 1,061-unit estimate used the historical 32-byte input unit, not a different or faster algorithm; it must not be compared as though both estimates used one meter.
 
 ## Signing failure: adopted MVP policy (2026-09-06)
 

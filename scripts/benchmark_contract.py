@@ -1,4 +1,4 @@
-"""Canonical declared metrics and exact MVP score; no Lean input interpolation."""
+"""Fixed declared metrics and total-query-work bound; no Lean input interpolation."""
 
 from fractions import Fraction
 import json
@@ -20,9 +20,9 @@ def scalar(path: Path) -> int:
 
 
 def parse_bound(path: Path) -> list[list[int]]:
-    """Each term is [numerator, denominator, hashExponent, signExponent, k].
+    """Each term is [numerator, denominator, workExponent, signExponent, k].
 
-    It denotes (numerator/denominator) * qH^a * qS^b / 2^k, where k = n*d.
+    It denotes (numerator/denominator) * Q^a * qS^b / 2^k, Q = qH + qS.
     No floats, signs, duplicate monomials, unreduced fractions or zero terms.
     """
     data = path.read_bytes()

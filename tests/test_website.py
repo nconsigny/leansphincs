@@ -74,25 +74,28 @@ class WebsiteTests(unittest.TestCase):
                 checked += 1
         self.assertGreater(checked, 0)
 
-    def test_version_and_shared_objective(self):
-        self.assertIn("DRAFT v0.16", self.source)
-        self.assertIn("draft rules v0.16", self.source)
-        self.assertIn('<span class="formula-big">minimize&nbsp;&nbsp;|σ| × V</span>', self.source)
+    def test_version_and_additive_objective(self):
+        self.assertIn("DRAFT v0.17", self.source)
+        self.assertIn("draft rules v0.17", self.source)
+        self.assertIn("2026-09-11", self.source)
+        self.assertIn('<span class="formula-big">minimize&nbsp;&nbsp;c × |σ| + V</span>', self.source)
         self.assertIn("Stage 1 is academic research; Stage 2 is the Ethereum selection.", self.source)
         objective = self.page.section_text("objective")
         self.assertIn("both stages", objective)
-        self.assertIn("|σ| * V", objective)
-        self.assertIn("fixes signing work and keygen work as hard budgets", objective)
+        self.assertIn("positive coefficient c", objective)
+        self.assertIn("no scalar ranking until that coefficient is pinned", objective)
+        self.assertIn("not a submission parameter", objective)
+        self.assertIn("not directly comparable", objective)
         self.assertIn("1.5 s signing, 1 minute keygen", objective)
         self.assertIn("worst-case cap", objective)
-        self.assertIn("not directly comparable", objective)
-        self.assertIn("Fixed-budget search is now the objective itself", objective)
-        self.assertIn("Hash chains are not assumed optimal", objective)
+        for stale in ("v0.12", "v0.13", "v0.14", "v0.15", "v0.16", "Spacetime"):
+            self.assertNotIn(stale, self.source)
 
     def test_publication_mechanics_stay_out_of_the_rules(self):
         self.assertIn('<link rel="canonical" href="https://nconsigny.github.io/leansphincs/">', self.source)
         self.assertNotIn("GitHub is canonical", self.source)
         self.assertNotIn("Claude artifact", self.source)
+        self.assertIn('href="https://github.com/nconsigny/leansphincs"', self.source)
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("GitHub is canonical", agents)
         self.assertIn("frozen legacy copy", agents)
@@ -100,40 +103,82 @@ class WebsiteTests(unittest.TestCase):
 
     def test_current_oracle_meter(self):
         cost = self.page.section_text("costmodels")
-        self.assertIn("32-byte output", cost)
-        self.assertIn("ceil(inputBytes / 64)", cost)
-        self.assertIn("including domain separation", cost)
-        self.assertIn("rom256-input64-ceil-v1", cost)
-        self.assertIn("v0.16 changes the ranking only and leaves this meter unchanged", cost)
-        self.assertIn("Sum the per-call ceilings", cost)
-        self.assertIn("empty-input case follows the literal ceiling", cost)
+        for text in ("32-byte output", "ceil(inputBytes / 64)", "including domain separation",
+                     "rom256-input64-ceil-v1", "Sum the per-call ceilings",
+                     "empty-input case follows the literal ceiling",
+                     "not a concrete compression block or an instruction"):
+            self.assertIn(text, cost)
         self.assertNotIn("ceil(inputBytes / 32)", self.source)
 
     def test_no_false_launch_or_budget_certificate_claim(self):
         self.assertIn("submissions not open", self.source)
         mvp = self.page.section_text("mvp")
-        self.assertIn("explicitly unranked", mvp)
-        self.assertIn("does not yet bind the signing and keygen budget certificates", mvp)
-        self.assertIn("Spacetime", mvp)
-        self.assertIn("Pareto", mvp)
-        self.assertIn("Stage 1 is the academic research track", mvp)
-        self.assertIn("Stage 2 is the Ethereum selection track", mvp)
-        self.assertIn("sigma.txt", mvp)
-        self.assertIn("hverify.txt", mvp)
-        self.assertIn("bound.txt", mvp)
-        self.assertIn("No cryptographic baseline yet", mvp)
+        for text in ("explicitly unranked", "does not yet bind the signing and keygen budget certificates",
+                     "sigma.txt", "hverify.txt", "bound.txt", "No cryptographic baseline yet",
+                     "not in a fourth entrant file", "With c unset it issues no scalar score"):
+            self.assertIn(text, mvp)
+        cost = self.page.section_text("costmodels")
+        self.assertIn("would not alone prove a worst-case bound", cost)
+        self.assertIn("No aggregate hash-throughput estimate certifies", cost)
 
-    def test_coding_cost_and_availability_boundaries(self):
+    def test_pure_rom_and_exact_constants(self):
+        rules = self.page.section_text("rules")
+        for text in ("pure ROM", "No additional cryptographic assumptions",
+                     "end-to-end Lean proof", "All constants remain in the bound",
+                     "no constants-dropping eligibility rule",
+                     "must not depend on Q or s", "1–128 monomials"):
+            self.assertIn(text, rules)
+        self.assertNotIn("Two proof styles are admissible", self.source)
+        self.assertNotIn("excludes MPCiTH and VOLEiTH", self.source)
+
+    def test_query_accounting_and_same_scheme_decay(self):
+        rules = self.page.section_text("rules")
+        for text in ("Q = qH + qS", "raw hash calls across the whole experiment",
+                     "key generation, adversarial hashing, honest signing and final forgery verification",
+                     "same scheme, parameters and bound B", "theorem itself must cover",
+                     "B(Q, 2^20) ≤ Q / 2^124", "B(Q, 2^32) ≤ Q / 2^100",
+                     "conservative sufficient gate"):
+            self.assertIn(text, rules)
+        baseline = self.page.section_text("baseline")
+        self.assertIn("same-scheme extended-lifetime proof is additional work", baseline)
+
+    def test_simple_interface_key_size_and_failure(self):
+        rules = self.page.section_text("rules")
+        for text in ("Public key at most 32 bytes", "Keygen() → (pk, sk)",
+                     "Sign(sk, m) → σ or ⊥", "Verify(pk, m, σ) → 0 or 1",
+                     "There is no required separate cache or presign channel",
+                     "Immutable precomputation may be part of sk",
+                     "exactly the declared length",
+                     "not an adaptive lifetime-availability guarantee",
+                     "Worst-case failure analysis is separate",
+                     "not enforced by the current statement/harness"):
+            self.assertIn(text, rules)
+        self.assertIn("Q² / 2256", rules)
+        self.assertNotIn("Public key at most 64", rules)
+
+    def test_broad_academic_track_and_composition(self):
+        mvp = self.page.section_text("mvp")
+        for text in ("academic research track", "few-time primitives", "complete constructions",
+                     "Standard hybrid arguments", "generally with a loss",
+                     "fully black-box standalone scheme", "Ethereum selection track"):
+            self.assertIn(text, mvp)
         rules = self.page.section_text("rules")
         self.assertIn("Reed–Solomon coding are permitted", rules)
-        self.assertIn("key generation ≤ 1 minute and signing ≤ 1.5 s", rules)
-        self.assertIn("key generation moves from 45 s to 1 minute", rules)
-        self.assertIn("Worst-case failure analysis is separate", rules)
-        self.assertIn("not an adaptive lifetime-availability guarantee", rules)
-        self.assertIn("not enforced by the current legacy MVP harness", rules)
-        cost = self.page.section_text("costmodels")
-        self.assertIn("not a concrete compression block or an instruction", cost)
-        self.assertIn("would not alone prove a worst-case bound", cost)
+
+    def test_human_credit_is_not_numeric_rank(self):
+        fmt = self.page.section_text("format")
+        self.assertIn("Numerical ranking is automatic; research credit is human-curated", fmt)
+        self.assertIn("do not change a submission's numerical score", fmt)
+        self.assertNotIn("post-launch harness bug", self.source)
+        self.assertIn("https://blog.zksecurity.xyz/posts/zkgolf/", self.page.links)
+        self.assertNotIn("vacation", self.source)
+        self.assertNotIn("not yet reviewed by the leanSig authors", self.source)
+
+    def test_no_quantum_promise(self):
+        rules = self.page.section_text("rules")
+        self.assertIn("A QROM theorem is not an entry requirement", rules)
+        self.assertIn("not a promised post-competition formalization", rules)
+        self.assertIn("does not establish a generic", rules)
 
 
 if __name__ == "__main__":

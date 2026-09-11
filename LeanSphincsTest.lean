@@ -2,6 +2,7 @@ import LeanSphincsTest.BoundExamples
 import LeanSphincsTest.Contract
 import LeanSphincsTest.SigningFailure
 import LeanSphincsTest.OracleMeter
+import LeanSphincsTest.ReviewRules
 import LeanSphincsTest.OTSScore
 import LeanSphincsTest.OTSGraph
 import LeanSphincsTest.OTSEvaluate

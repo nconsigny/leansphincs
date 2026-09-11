@@ -1,6 +1,7 @@
 """Host-side contract regressions. Comparator tests are a separate integration job."""
 
 import importlib.util
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -38,7 +39,7 @@ class ContractTests(unittest.TestCase):
         source_policy.check(self.root)
         self.assertEqual(self.imports().returncode, 0)
         sigma, hverify, terms = metrics(self.root)
-        self.assertEqual(sigma * hverify, 43008)
+        self.assertEqual((sigma, hverify), (1024, 42))
         template = render(sigma, hverify, terms)
         self.assertIn("1024 42 [⟨256, 0, 2, 0, 256⟩]", template)
         self.assertNotIn("import LeanSphincs.Submission", template)
@@ -64,6 +65,19 @@ class ContractTests(unittest.TestCase):
         self.write("bound.txt", "[" * 2000 + "0" + "]" * 2000)
         with self.assertRaises(ValueError):
             parse_bound(self.root / "bound.txt")
+
+    def test_fixed_bound_term_limit(self):
+        terms = [[1, 1, exponent, 0, 128] for exponent in range(128)]
+        self.write("bound.txt", json.dumps(terms))
+        self.assertEqual(len(parse_bound(self.root / "bound.txt")), 128)
+        self.write("bound.txt", json.dumps(terms + [[1, 1, 128, 0, 128]]))
+        with self.assertRaises(ValueError):
+            parse_bound(self.root / "bound.txt")
+
+    def test_entrant_cannot_supply_scoring_profile(self):
+        self.write("scoring.json", '{"bandwidth_price": 1}')
+        with self.assertRaises(ValueError):
+            source_policy.check(self.root)
 
     def test_transitive_helper_import_rejected(self):
         self.write("Solution.lean", "import LeanSphincs.Submission.Helper\n")
@@ -108,6 +122,8 @@ class ContractTests(unittest.TestCase):
         result = subprocess.run(command, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('"ranked": false', result.stdout)
+        self.assertNotIn("score", json.loads(result.stdout))
+        self.assertIn("score_pending", json.loads(result.stdout))
         self.write("hverify.txt", "1\n")
         result = subprocess.run(command, text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0)

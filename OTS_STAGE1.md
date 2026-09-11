@@ -1,73 +1,47 @@
-# Stage 1: hash-graph OTS exploration
+# Experimental OTS foundations within the academic track
 
-Status: experimental implementation, updated 2026-09-10. Not an open competition,
-protected OTS claim or security proof. The v0.15 website draft retains the shared
-objective for both stages and updates the protected hash-work meter to 64-byte
-input units. The legacy MVP claim still has only its original metric fields.
-Emile's full SPHINCS reference and ongoing OTS work are not modified here.
+Status: experimental implementation, updated 2026-09-11. Not an open competition,
+protected OTS security claim or accepted scheme. Stage 1 also covers few-time
+components, encodings, authentication, composition and complete constructions.
+This document describes only the current OTS research tools. Emile's construction
+interface and the audited SPHINCS reference pin are unchanged.
 
-## Objective decision
+## Current objective and experiment semantics
 
-The organizer requests size × keygen × signing × verification, with lower weight
-on keygen. Represent that as
+The rules use **c * signatureBytes + verificationWork**, with signing and keygen
+as hard budget constraints. The positive rational c belongs to a calibrated
+organizer profile. No official price has been selected and no scalar leaderboard
+exists yet. Account limits remain 1.5 s signing / 60 s keygen / 64 KiB working RAM;
+component allocations and full-program certificates remain open. Abstract hash
+counts do not certify seconds.
 
-`score = signatureBytes * signingWork * verificationWork * keygenWork^beta`
+`LeanSphincs/OTS/Score.lean` defines exact additive arithmetic, positivity and
+monotonicity. `stage1RankKey price` and `stage2RankKey price` use that same
+formula, not the same security game or metric profile. None of these arithmetic
+lemmas certifies an algorithm's costs.
 
-The organizer approved **beta = 1/4** on 2026-09-09. Signing
-semantics remain pending: expected work with a separate worst-case cap is
-proposed, versus directly scoring worst-case work. Never mix those profiles.
-The command defaults to the approved quarter weight; other beta values are
-explicitly labelled research overrides. Signing semantics and the declared work
-remain required arguments. This weight decision does not freeze the whole profile.
+The experiment CLI defaults to the size/verification **Pareto frontier**.
+An explicit `--bandwidth-price 1/8`, for example, explores a hypothetical
+additive price using exact rationals; it does not set the competition price.
+Signing work and its semantics remain required research inputs, with
+`budget_certified: false`. No official scalar score is emitted without a price.
 
-Superseded on 2026-09-10 (spec v0.16): the rules objective is now
-`signatureBytes * verificationWork`, with signing and keygen work fixed as hard
-budgets (1.5 s signing, 1 minute keygen at the wallet anchor); the oracle meter is
-unchanged. Stage 1 is the academic research track on pure hash work; Stage 2 is the
-Ethereum selection. The four-factor rank key below is retained only as an
-exploratory research view; it no longer defines any leaderboard. The Stage 1 board
-shows a Spacetime tab (ranking by signature bytes × verification work at the fixed
-budgets, the CLI's product selection) and a Pareto tab (the size/verification
-frontier at those budgets, `--include-frontier`).
+Historical decisions: the organizer approved the four-factor formula
+`size * signing * verification * keygen^(1/4)` on September 9, then the
+`size * verification` objective on September 10. Both are superseded by the
+September 11 additive rule. `rankKey`, quarter-weight arithmetic and explicit
+`selection="product"` helpers remain for reproducing those research snapshots;
+they are not current stage rankers. The CLI no longer has a beta default.
 
-For rational `beta = a/b`, compare the exact rational key
-`(signatureBytes * signingWork * verificationWork)^b * keygenWork^a`.
-For positive quantities, taking the b-th power preserves the ordering. No
-floating-point root or logarithm participates in this comparator.
-`LeanSphincs/OTS/Score.lean` defines that key and proves positivity and weak
-monotonicity under componentwise cost increases. Its quarter-weight arithmetic
-fixtures show that 16× keygen has the same penalty as 2× signature size.
-`stage1RankKey` pins the approved quarter-weight specialization.
+Emile's polynomial-coding annex reinforces why we retain separate hash and
+execution views. Field operations, codebook decoding and preprocessing must be
+included in a full-program profile. Lower hash work is not necessarily lower
+latency. See [POLYNOMIAL_CODING_REVIEW.md](POLYNOMIAL_CODING_REVIEW.md).
 
-These metrics are declarations until tied to algorithm certificates. Expected
-signing work may be a rational upper bound, but not a measured sample mean.
-The probability space, retry bound, charged preprocessing and eventual binding
-theorem must be pinned. A separate availability theorem remains required.
-Expected signing cost cannot replace the worst-case whole-game security budget.
-
-The organizer approved applying the same four-factor objective to Stage 2 on
-2026-09-10. `stage2RankKey` uses the same exact formula; this is not permission to
-compare primitives directly with complete schemes, or to mix metric profiles.
-The existing legacy full-scheme MVP still scores `sigma * hverify`; its
-`SchemeClaim` and three-file contract do not yet certify the new K/S factors.
-Website v0.15 is maintained on GitHub, the canonical source by organizer decision
-on 2026-09-10. The earlier Claude artifact is a legacy copy, not a synchronized
-publication target.
-
-Emile's polynomial-coding annex reinforces the need for full execution metering:
-field operations, codebook decoding and preprocessing are not free under a cycle
-profile. Keep the hash-work view and add the cycle-based four-factor view; enforce
-hard execution/memory gates before promotion. The definitive prize profile,
-weights and caps remain to calibrate. The wallet budgets are 1 minute keygen / 1.5 s signing as of v0.16; the
-illustrative 5 minute / 5 second thresholds were not adopted.
-See [POLYNOMIAL_CODING_REVIEW.md](POLYNOMIAL_CODING_REVIEW.md).
-
-At fixed signature size and signing budget, the conditional objective can be
-minimum verification work. Hash chains are not presumed optimal: the organizer
-reports regimes where Reed–Solomon-coded candidates improve this tradeoff.
-Keep such conditional frontiers without claiming a global lower bound or dropping
-keygen/availability gates. The current four fixed-family experiments do not yet
-implement the annex's complete coded signer/verifier.
+At fixed size and signing constraints, the conditional objective may be minimum
+verification work. Chains are not presumed optimal; ROM-secure coded candidates
+remain in scope. The current four-family experiment does not implement the
+annex's complete signer/verifier, establish global optimality or certify budgets.
 
 ## Implemented foundations
 
@@ -100,8 +74,8 @@ implement the annex's complete coded signer/verifier.
 - `scripts/ots_experiments.py`: exact integer polynomial counting for the four
   fixed graph shapes in *looking for the optimal hash-based one-time signature*.
   It searches reconstruction-cost layers and disclosure-size caps, selects the
-  product-minimizing pair within each graph, and optionally emits each graph's
-  size/verification Pareto frontier. Keygen is fixed per graph and the explicit
+  size/verification frontier by default, or the additive-minimizing pair at an
+  explicit research price. Keygen is fixed per graph and the explicit
   signing metric is common across these codebooks. This is not exhaustive graph
   synthesis or a global optimality result.
 - `scripts/check-ots-axioms.lean`: audit every declaration under `LeanSphincs.OTS`,
@@ -111,8 +85,11 @@ implement the annex's complete coded signer/verifier.
 ## Reproducible experiments
 
 ```sh
-python3 scripts/ots_experiments.py --profile rom32-input64 --beta 1/4 \
-  --signing-work 131072 --signing-kind expected-upper-bound --include-frontier
+python3 scripts/ots_experiments.py --profile rom32-input64 \
+  --signing-work 131072 --signing-kind expected-upper-bound
+# Optional research price, not the competition profile:
+python3 scripts/ots_experiments.py --profile rom32-input64 \
+  --signing-work 131072 --signing-kind expected-upper-bound --bandwidth-price 1/8
 python3 -m unittest discover -s tests -v
 lake build LeanSphincsTest
 lake env lean scripts/check-ots-axioms.lean
@@ -138,7 +115,7 @@ reproduction only. JSON reports distinguish the meters; do not mix their scores.
 These are candidate-layout choices, not a new competition oracle definition.
 
 Under this layout, with 2^112 disclosures required and a cap of 128 disclosed
-values, the product-selected points for the fixed graph shapes are:
+values, the historical product-selected points for the fixed graph shapes were:
 
 | Fixed shape | Signature bytes | Keygen | Verification |
 | --- | ---: | ---: | ---: |
@@ -147,8 +124,8 @@ values, the product-selected points for the fixed graph shapes are:
 | Pairwise shared seeds | 1744 | 220 | 101 |
 | Four-way shared seeds | 1824 | 329 | 123 |
 
-All rows use the same stipulated signing work; the CLI computes the four-factor
-rank key for the supplied beta. These shapes no longer meet the note's keygen
+These rows are historical product-selected examples, not current additive
+winners. Signing work was stipulated, not proved. These shapes no longer meet the note's keygen
 budget of 168 under this meter. That budget is not adopted as a Stage 1 rule.
 This reversal is not a general impossibility result for branching/shared seeds.
 
@@ -159,8 +136,9 @@ code does not implement the decoder or prove this SUF-preserving serialization.
 
 ## Next proof milestones, in order
 
-1. Signing and keygen budgets are fixed (v0.16: 1.5 s / 1 minute at the anchor;
-   Stage 1 fractions still to pin). Beta = 1/4 survives only in the research view.
+1. Pin the first academic game, component budgets and price calibration.
+   Account budgets remain 1.5 s / 60 s; no hash-unit-to-time conversion certifies
+   them and no price is inferred from historical product winners.
 2. Address serialization and actual oracle evaluation/metering are implemented.
    Reconstruction against an oracle-consistent reference is now proved. Next
    construct that reference from randomized keygen and transport through the ROM; instantiate each
@@ -172,9 +150,11 @@ code does not implement the decoder or prove this SUF-preserving serialization.
 5. With Emile, pin standalone chosen-message OTS versus the internal-root game.
    Prove strong one-time security under that game, with our raw whole-experiment
    query budget; combinatorial incomparability alone is not that theorem.
-6. Add multi-instance and same-message repeat-signing contracts before composition.
-   Only then add a protected OTS claim/comparator and an accepted baseline with
-   mutated negative tests. Preserve an open non-template submission route.
+6. Use standard hybrid multi-instance reductions where applicable, recording
+   their loss. Check the actual shared-ROM/domain-separation and key-derivation
+   conditions and repeat-signing behavior in the consuming construction. Add a
+   protected track claim/comparator and accepted baseline with mutation tests.
+   Keep a direct-proof route beyond the templates.
 
 No wallet feasibility, 127-bit theorem, certified candidate or optimal primitive
 is inferred from these arithmetic and graph foundations.
@@ -182,8 +162,9 @@ is inferred from these arithmetic and graph foundations.
 ## Worst-case failure probability
 
 The organizer requested explicit treatment of worst-case probability. This does
-not by itself decide whether the signing score should be expected or worst-case
-work; that separate choice remains pending.
+not turn a conditional failure envelope into an actual signer certificate.
+Signing is no longer a score factor. A hard latency cap needs worst-case work;
+expected work may be reported separately.
 
 The new proof bounds survival mass from a step inequality
 `tail(n+1) <= tail(n)*(1-p)`. A success lower bound conditional on every surviving
@@ -217,6 +198,8 @@ Before eligibility, define the precise worst-case request/history scope, prove
 the cache/freshness and retry behavior against the actual signer, and transport
 the bound to the protected availability game. The current MVP fixed-message,
 fresh-key availability clause has not been silently strengthened or replaced.
+
+## Historical validation snapshots
 
 Validation on 2026-09-09: 53 host tests passed; `lake build LeanSphincs
 LeanSphincsTest` completed successfully (3305 jobs); both the protected and OTS

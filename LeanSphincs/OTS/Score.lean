@@ -1,6 +1,6 @@
 import Mathlib.Tactic
 
-/-! Experimental four-factor objective for both research stages.
+/-! Exact additive objective and historical experimental score arithmetic.
 Not imported by the protected MVP Target.
 Metrics still need certificates binding them to an actual scheme. -/
 
@@ -16,8 +16,8 @@ deriving DecidableEq, Repr
 def Costs.Positive (c : Costs) : Prop :=
   0 < c.signatureBytes ∧ 0 < c.keygen ∧ 0 < c.signing ∧ 0 < c.verification
 
-/-- For β = a/b, compare the b-th power of σ * S * V * K^β.
-This avoids floating-point roots. Organizers must pin 0 < a < b.
+/-- Historical objective only. For β = a/b, compare the b-th power of σ * S * V * K^β.
+This avoids floating-point roots; it is not the current competition ranker.
 Signing semantics (expected or worst-case) belong to the profile, not this formula. -/
 def rankKey (a b : Nat) (c : Costs) : ℚ :=
   (c.signatureBytes * c.signing * c.verification) ^ b * c.keygen ^ a
@@ -43,18 +43,32 @@ theorem rankKey_mono (a b : Nat) (c d : Costs) (hc : c.Positive)
   unfold rankKey
   gcongr
 
-/-- Quarter-weight specialization approved for Stage 1 on 2026-09-09. -/
+/-- Historical quarter-weight specialization, superseded by additive pricing. -/
 theorem quarterKey (c : Costs) :
     rankKey 1 4 c = (c.signatureBytes * c.signing * c.verification)^4 * c.keygen := by
   simp [rankKey]
 
-/-- The approved Stage 1 ranking key. Signing semantics still require a profile. -/
-def stage1RankKey (c : Costs) : ℚ := rankKey 1 4 c
+/-- Current objective. The positive bandwidth price is fixed by the organizer's
+profile, not a submission. No production price has been calibrated yet. -/
+def additiveScore (bandwidthPrice : ℚ) (c : Costs) : ℚ :=
+  bandwidthPrice * c.signatureBytes + c.verification
 
-/-- The same formula for complete schemes, approved 2026-09-10. Stage-specific
-game and metric certificates are still required; stages are not cross-ranked. -/
-def stage2RankKey (c : Costs) : ℚ := rankKey 1 4 c
+theorem additiveScore_pos (price : ℚ) (c : Costs) (hp : 0 < price) (hc : c.Positive) :
+    0 < additiveScore price c := by
+  rcases hc with ⟨hs, hk, hg, hv⟩
+  unfold additiveScore
+  positivity
 
-theorem stage2RankKey_eq_stage1 (c : Costs) : stage2RankKey c = stage1RankKey c := rfl
+theorem additiveScore_mono (price : ℚ) (c d : Costs) (hp : 0 ≤ price)
+    (hs : c.signatureBytes ≤ d.signatureBytes) (hv : c.verification ≤ d.verification) :
+    additiveScore price c ≤ additiveScore price d := by
+  unfold additiveScore
+  gcongr
+
+def stage1RankKey (price : ℚ) (c : Costs) : ℚ := additiveScore price c
+def stage2RankKey (price : ℚ) (c : Costs) : ℚ := additiveScore price c
+
+theorem stage2RankKey_eq_stage1 (price : ℚ) (c : Costs) :
+    stage2RankKey price c = stage1RankKey price c := rfl
 
 end LeanSphincs.OTS

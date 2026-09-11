@@ -16,9 +16,9 @@ class OTSExperimentsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.paper = experiments("paper", selection="verification")
-        cls.rom = experiments("rom32")
+        cls.rom = experiments("rom32", selection="product")
         cls.rom_verify = experiments("rom32", selection="verification")
-        cls.current = experiments("rom32-input64")
+        cls.current = experiments("rom32-input64", selection="product")
         cls.current_verify = experiments("rom32-input64", selection="verification")
 
     def test_paper_verification_and_keygen_totals(self):
@@ -97,26 +97,39 @@ class OTSExperimentsTests(unittest.TestCase):
         self.assertEqual([(r["padded_signature_bytes"], r["verification"]) for r in pareto(points)],
                          [(1, 5), (2, 3), (4, 1)])
 
-    def test_cli_defaults_to_approved_weight_without_claiming_eligibility(self):
+    def test_cli_without_price_reports_only_frontier(self):
         command = [sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/ots_experiments.py"),
                    "--profile", "paper", "--signing-work", "1", "--signing-kind", "expected-upper-bound"]
         report = json.loads(subprocess.check_output(command, text=True, timeout=30))
-        self.assertEqual(report["beta"], "1/4")
-        self.assertFalse(report["experimental_weight_override"])
+        self.assertIsNone(report["bandwidth_price"])
+        self.assertEqual(report["selection"], "frontier")
+        for row in report["results"]:
+            self.assertNotIn("rank_key", row)
+            self.assertIn("frontier", row)
         self.assertFalse(report["ranked"])
         self.assertFalse(report["security_proved"])
         self.assertFalse(report["costs_certified"])
-        invalid = subprocess.run(command + ["--beta", "1"], capture_output=True, text=True, timeout=10)
+        invalid = subprocess.run(command + ["--bandwidth-price", "0"], capture_output=True, text=True, timeout=10)
         self.assertEqual(invalid.returncode, 2)
 
     def test_current_cli_exposes_meter_version(self):
         command = [sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/ots_experiments.py"),
                    "--profile", "rom32-input64", "--signing-work", "1", "--signing-kind", "worst-case-bound"]
         report = json.loads(subprocess.check_output(command, text=True, timeout=30))
-        self.assertEqual(report["schema"], "leansphincs-ots-experiment-v2")
+        self.assertEqual(report["schema"], "leansphincs-ots-experiment-v3")
         self.assertEqual(report["hash_meter"]["id"], "rom256-input64-ceil-v1")
         self.assertEqual(report["hash_meter"]["output_bytes"], 32)
         self.assertFalse(report["ranked"])
+
+    def test_additive_selection_matches_full_frontier(self):
+        price = Fraction(1, 8)
+        for row in experiments("rom32-input64", selection="additive", bandwidth_price=price,
+                               include_frontier=True):
+            selected = price * row["padded_signature_bytes"] + row["verification"]
+            self.assertEqual(selected, min(price * p["padded_signature_bytes"] + p["verification"]
+                                           for p in row["frontier"]))
+        with self.assertRaises(ValueError):
+            experiments("paper", selection="additive")
 
 
 if __name__ == "__main__":

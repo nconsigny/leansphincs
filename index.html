@@ -301,370 +301,205 @@
 <header>
   <p class="eyebrow">Autoresearch competition · draft rules for review</p>
   <h1><span class="lean">lean</span>SPHINCS</h1>
-  <p class="subtitle">An open, machine-judged competition to find the stateless hash-based signature scheme for post-quantum Ethereum accounts.</p>
+  <p class="subtitle">An open search for stateless hash-based signatures for Ethereum accounts, with Lean proofs of security in the classical, pure random-oracle model.</p>
   <div class="statusline">
-    <span><strong>DRAFT v0.16</strong></span>
-    <span>2026-09-10</span>
-    <span>values in <span class="tbd">amber</span> are placeholders pending calibration</span>
+    <span><strong>DRAFT v0.17</strong></span>
+    <span>2026-09-11</span>
+    <span>values in <span class="tbd">amber</span> remain open</span>
   </div>
 </header>
 
 <section id="implementation-status">
   <h2>Two research stages · not open for submissions</h2>
-  <p><strong>Stage 1 is academic research; Stage 2 is the Ethereum selection.</strong> Stage 1 searches for one-time signature primitives and measures pure hash work: oracle calls weighted by input bytes / 64, so a construction cannot lower its count by pushing huge inputs, such as whole tree layers, through single calls. Stage 2 builds complete stateless account signatures and applies every deployment gate on the way to an Ethereum choice. Both use the objective in §3: signature bytes times verification work, with signing and keygen work fixed by hard budgets rather than scored. A primitive's score is not a complete scheme's score: composition must re-prove security and account for all setup, signing, authentication and encoding work.</p>
-  <p>The repository contains a working legacy MVP harness and experimental OTS foundations: exact ranking and counting, byte-level graph evaluation and weighted-query proofs, reconstruction against an oracle-consistent reference, and conditional signing-failure envelopes. <strong>No complete OTS security certificate or accepted SPHINCS⁻ baseline #0 exists yet.</strong> RISC-V metering, wallet gates, the signing and keygen budget certificates with their comparator binding, external audit and registered verification remain launch work. The current legacy three-file harness still reports |σ| × H<sub>verify</sub>, unranked; that is the v0.16 objective's formula, but the harness does not yet certify the budgets.</p>
-  <p><a href="https://github.com/nconsigny/leansphincs/blob/main/OTS_STAGE1.md">OTS implementation and proof milestones</a> · <a href="https://github.com/nconsigny/leansphincs/blob/main/SCHEMECLAIM_PLAN.md">Workstream plan</a> · <a href="https://github.com/nconsigny/leansphincs/blob/main/HARNESS_SECURITY.md">Harness evidence and launch gates</a></p>
+  <p><strong>Stage 1 is academic research; Stage 2 is the Ethereum selection.</strong> Academic research includes one-time and few-time signatures, encodings, authentication structures, composition and complete constructions. Stage 2 evaluates complete stateless account signatures against every deployment gate. Improving a component does not automatically improve the resulting signature scheme: authentication paths, key derivation, domain separation and serialization must be included when evaluating the complete construction.</p>
+  <p>The <a href="https://github.com/nconsigny/leansphincs">leanSPHINCS repository</a> contains the protected pure-ROM statement, a working local verification harness and experimental OTS foundations. The statement enforces a 32-byte public-key cap, exact signature size, weighted verification work, total-query security floors and same-scheme lifetime decay. <strong>No complete OTS security certificate or accepted SPHINCS⁻ baseline #0 exists yet.</strong> Full-program metering, signing/keygen budget certificates, the calibrated bandwidth price, external audit and registered verification remain launch work. Local receipts are unranked; an unset price produces no scalar score.</p>
+  <p><a href="https://github.com/nconsigny/leansphincs/blob/main/SCHEMECLAIM_PLAN.md">Workstream plan</a> · <a href="https://github.com/nconsigny/leansphincs/blob/main/IMPLEMENTATION.md">Implementation contract</a> · <a href="https://github.com/nconsigny/leansphincs/blob/main/HARNESS_SECURITY.md">Harness evidence and launch gates</a></p>
 </section>
 
 <section id="background">
   <h2><span class="secno">1</span>Background &amp; motivation</h2>
-  <p>Ethereum's post-quantum roadmap runs on hash-based signatures. The consensus-track scheme is advancing in parallel through the leanSig line of work (Drake, Khovratovich, Kudinov, Wagner; ePrint <a href="https://eprint.iacr.org/2025/055">2025/055</a> and the follow-up <a href="https://eprint.iacr.org/2025/1332">LeanSig technical note</a>), which builds a generalized XMSS from incomparable encodings, instantiated with Poseidon2 for SNARK-friendliness. On the execution side, <a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">SPHINCS⁻</a> demonstrated the same levers this competition pulls: a traditional hash native to the verification environment (KECCAK256), signature budgets cut from 2<sup>64</sup> to 2<sup>14</sup>–2<sup>20</sup>, and WOTS+C/FORS+C compression, reaching 3.7 KB signatures verifiable on the EVM for ≈127k gas, without protocol changes. With the August 2026 pivot away from Poseidon toward traditional hash functions (SHA / BLAKE), the design space reopens: the SNARK-friendliness constraint is replaced by a zkVM cost model, and the security argument moves onto much firmer ground: a battle-tested hash modeled as a random oracle.</p>
-  <p><strong>leanSPHINCS</strong> is the name of the scheme this competition exists to find, and its home is the <strong>execution layer</strong>. leanSig answers the consensus-layer question: how a million validators sign attestations every slot, in a synchronized setting where the signing epoch is part of the scheme. This competition asks the execution-layer question next to it: which signature do quantum-resistant Ethereum <em>accounts</em> use? That question has a different shape, and the constraints in this document are that shape. Statelessness is non-negotiable, because account keys cannot safely keep a counter: users restore from seed phrases and sign from several devices, and for a stateful hash-based scheme a single reused state means a broken key. Key generation and signing are budgeted on hardware-wallet-class devices, because that is where account keys actually live. Verification is priced in zkVM cycles, because execution-layer signatures will be checked inside validity proofs at scale; SPHINCS⁻ told the native-EVM version of this story, and the zkVM cost model is its continuation. The 2<sup>20</sup> lifetime and the R4 decay rule mirror real wallet usage: a million signatures outlasts almost any account, and heavy accounts degrade gracefully rather than falling off a cliff.</p>
-  <p>To be explicit about scope: <strong>this competition does not pick Ethereum's consensus signature</strong>, and it does not compete with leanSig. The two run in parallel on the two layers, sharing techniques, proofs, and people. leanSPHINCS maps how far the stateless design space can be pushed under Ethereum-shaped cost models, and its outputs (schemes, formal proofs, cost frontiers, impossibility results) are evidence for everyone working on the problem, not a verdict.</p>
-  <p>The competition is an <em>autoresearch</em> competition: it is designed so that autonomous AI research agents can participate on equal footing with human cryptographers. That imposes one discipline on us, the organizers, which turns out to be a virtue: <strong>every rule must be machine-checkable</strong>. Eligibility and score are decided by a Lean 4 compiler and a deterministic harness, not a jury; humans re-enter only after the leaderboard, in the review gate of §6. "Close to NIST level 1" is not a Lean 4 statement, so §4 makes it one.</p>
+  <p>Which signature should a quantum-resistant Ethereum account use? Accounts need keys that can be restored and used on multiple devices, bounded signing latency, small transmitted signatures and economical verification. This competition explores that execution-layer design space. It complements <a href="https://eprint.iacr.org/2025/1332">leanSig</a> on the consensus layer; it does not select Ethereum's consensus signature or decide protocol adoption.</p>
+  <p><a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">SPHINCS⁻</a> motivates the full-scheme baseline, but the search is not restricted to its construction. Hash chains are not assumed optimal. Public encodings and algebraic computations are allowed if the complete security argument is proved in the pure ROM and their actual costs are accounted for.</p>
+  <p>Human researchers and autonomous agents work against the same pinned statement. A compiler can check a formal theorem; it cannot establish that our chosen game models the intended application or that a cost profile predicts deployment performance. Those modeling choices require review before launch and before adoption.</p>
 </section>
 
 <section id="format">
   <h2><span class="secno">2</span>The autoresearch format</h2>
-  <p>The format follows a pattern that recent autoresearch challenges, most directly <a href="https://blog.ethereum.org/en/2026/08/20/better-codes-challenge">better.codes</a> (launched August 2026), have already proven: a pinned problem statement, a public frontier repository, and a deterministic promotion gate. Solvers sign in, clone the challenge repo, and work inside a designated submission surface; everything else is pinned. The judging pipeline runs, in order:</p>
+  <p>The planned competition uses a public, cumulative frontier and reproducible verification, drawing on <a href="https://github.com/proximity-prize/proximity-prize">better.codes' protected-target harness</a>. Each submission supplies algorithms and a Lean proof of security in the pinned pure ROM. The pipeline checks:</p>
   <ol>
-    <li><strong>Proof check.</strong> <code>lake build</code> against a pinned Lean 4 toolchain and dependency set. Zero <code>sorry</code>; axioms restricted to a whitelist; a <em>comparator</em> checks that the exported top-level theorem exactly matches the pinned statement (§4, R7); the scheme's own definitions are the only free part.</li>
-    <li><strong>Rule audit.</strong> Static checks: security-bound extraction and bit-security computation (R2, R3, R4), public-key size (R5), interface conformance (R8).</li>
-    <li><strong>Metering.</strong> The instrumented RISC-V environment (§5) executes every stage and reports the hash, memory, and instruction meters per surface. Execution is fully virtualized and deterministic: identical inputs give identical counts.</li>
-    <li><strong>Score &amp; promotion.</strong> Planned for the frozen stage profile: computed from §3, published with the full CI log. Promotion requires eligibility and either a better score or an improvement to the full size/keygen/signing/verification cost frontier. Current local receipts are unranked and do not promote themselves.</li>
+    <li><strong>Proof and statement.</strong> Build against pinned dependencies; compare the exported theorem with the protected target; check the axiom closure of the theorem and algorithms. Only the scheme definition is a comparator hole.</li>
+    <li><strong>Eligibility.</strong> Check the certified security bound, sizes and resource obligations required by the selected stage and profile. Unimplemented gates cannot be replaced by declarations.</li>
+    <li><strong>Metrics.</strong> Retain exact size and proved work bounds, plus execution and memory evidence linked to the same implementation.</li>
+    <li><strong>Score and promotion.</strong> Once the profile is frozen and all gates are implemented, compute its additive score automatically and retain its nondominated cost frontier.</li>
   </ol>
-  <p>Promoted submissions merge into the <strong>public frontier repository</strong>, credited to the solver <em>and</em> the model used. The competition is cumulative, not sealed: anyone may build on any promoted submission, and lemmas, proof techniques, parameter dead-ends, and impossibility results are upstreamed so later solvers, human or agent, skip them. Negative results that provably close off part of the design space (e.g. "no parameter choice in this encoding family satisfies R2+R3 below 1.2 KiB") earn credit too.</p>
-  <p>No human judgment sits in the scoring loop; the review gate of §6 applies after it, between leaderboard and adoption. Humans maintain the rules repository, the assumption registry (R7), and the harnesses, all versioned, with changes applying only to future submissions. The harness itself gets an external audit before launch and a standing bounty for rule exploits: zk.golf's post-launch harness bug, caught by an outside auditor, is the cautionary precedent. The quality bar for this pipeline is the better.codes harness: pinned statement and parameter point, a comparator that accepts only an exactly matching exported theorem, kernel-checked proofs, credited promotion. leanSPHINCS aims to match that bar or raise it. That harness is public and directly reusable: protected target modules, a comparator with a permitted-axiom list, flat size-limited submission roots, in-repo editable baselines, agent-facing instructions, and a rejection explainer.</p>
-
-  <h3><span class="secno">2.1</span>Sibling competitions, and what we take from each</h3>
-  <div class="tablewrap">
-  <table>
-    <tr><th>Competition</th><th>Task</th><th>Pattern adopted here</th></tr>
-    <tr>
-      <td><a href="https://better.codes">better.codes</a></td>
-      <td>Raise the machine-checked soundness bound of koalaIRS12 (Reed–Solomon proximity, Lean 4 / ArkLib) toward 128 bits</td>
-      <td>Pinned theorem + comparator; score extracted from the Lean statement itself; promotion to a public repo credited to solver and model; upstreaming of lemmas and impossibility results</td>
-    </tr>
-    <tr>
-      <td><a href="https://zk.golf">zk.golf</a></td>
-      <td>Golf ZK circuits against a pinned formal interface, correctness proved in Lean 4</td>
-      <td>Costs are <em>proven</em>, not just measured (submissions carry cost proofs); "fearless optimization", since the kernel blocks unsound tricks; external audit of the harness</td>
-    </tr>
-    <tr>
-      <td><a href="https://snark.fast">snark.fast</a></td>
-      <td>Maximize BLAKE3 compressions/s on x86 and Apple Silicon</td>
-      <td>A pinned trusted verifier gates every promotion; per-model improvement tracking (+270% over baseline in two weeks)</td>
-    </tr>
-    <tr>
-      <td><a href="https://ecdsa.fail">ecdsa.fail</a></td>
-      <td>Quantum circuits attacking ECDSA</td>
-      <td>Spacetime score history charts; Pareto-frontier tracking alongside the scalar score; the full record of progress legible to all participants</td>
-    </tr>
-  </table>
-  </div>
-  <p class="tablecaption">All four run fully automated judging. better.codes in particular already scores a Lean-checked security statement on a public leaderboard, the same core mechanism leanSPHINCS needs; its submission-surface and comparator design can be reused nearly as-is.</p>
+  <p><strong>Numerical ranking is automatic; research credit is human-curated.</strong> Organizers may credit useful lemmas, attacks, negative results and lower bounds separately, with reasons and the model/family to which each result applies. A checked impossibility theorem does not make its relevance a machine-decided question. These credits do not change a submission's numerical score.</p>
+  <p>The harness needs an external audit before launch and a rules-exploit reporting process. The <a href="https://blog.zksecurity.xyz/posts/zkgolf/">zk.golf launch discussion</a> illustrates why carefully specifying the optimization target matters. Proof checking is not a substitute for reviewing that specification. Human review remains required before any award or adoption.</p>
 </section>
 
 <section id="objective">
-  <h2><span class="secno">3</span>Objective</h2>
+  <h2><span class="secno">3</span>The objective</h2>
   <div class="objective">
-    <span class="formula-big">minimize&nbsp;&nbsp;|σ| × V</span>
-    <p class="caption">both stages: signature bytes × verification work, with signing work S and keygen work K fixed by the R9 budgets (1.5 s signing, 1 minute keygen at the anchor) rather than scored; lower wins, subject to hard security and usability gates</p>
+    <span class="formula-big">minimize&nbsp;&nbsp;c × |σ| + V</span>
   </div>
-  <p>Signing latency and account setup are part of execution-layer UX, but they are bounded needs, not open-ended ones: a signer that answers within 1.5 s and a key setup that finishes within a minute are good enough, and nothing faster buys the account holder anything. v0.16 therefore <strong>fixes signing work and keygen work as hard budgets</strong> (R9: 1.5 s signing, 1 minute keygen at the anchor) and removes them from the score. The two quantities the network pays for repeatedly, persistent signature bytes and verification work, carry all the optimization pressure. This replaces the v0.14 four-factor objective |σ| × S × V × K<sup>1/4</sup> with keygen exponent β = 1/4; the earlier size exponent α = 1.25 is not reinstated, so the score is the plain product.</p>
-  <p>The <strong>hash-work view</strong> scores V = H<sub>verify</sub> and checks S = H<sub>sign</sub> and K = H<sub>keygen</sub> against the R9 budgets, each weighted by input length under the same oracle. A <strong>cycle-based view</strong> applies the same objective and budgets to registered execution-cost meters. Scores from different profiles or stages are not directly comparable. Keygen includes graph/seed expansion and required setup; signing includes encoding, retries and authentication, and must fit its budget on every execution path; verification includes decoding, padding checks and all authentication work. Delegated work and cache construction cannot simply disappear from accounting.</p>
-  <p>Compare the exact integer <code>|σ| * V</code>; no roots or floating point are involved. Every scored or budgeted quantity must ultimately be bound to the actual implementation by a certificate. Fixing the budgets also settles the expected-versus-worst-case question for signing: the R9 signing budget is a <strong>worst-case</strong> cap, so signing work must fit it on every execution path, including all permitted retries, and a signing-failure theorem (R8) is still required. Expected signing work may be reported in the metrics panel but never ranks.</p>
-  <p><strong>Hash minimization is not a deployment certificate.</strong> Polynomial/Reed–Solomon coding, codebook unranking and big-integer arithmetic can save hash calls while adding substantial instructions, memory accesses or table construction. These operations stay in scope when security needs no assumption beyond the ROM, but all executable work must be metered. Keep both hash and cycle frontiers; promotion requires the pinned execution-cost and memory gates, not a claim that arithmetic is free. The cycle profile and caps must be calibrated before awards; they are not yet implemented in the harness.</p>
-  <p><strong>Fixed-budget search is now the objective itself, not a slice of it.</strong> With the signing and keygen budgets fixed, search for the smallest signature-bytes × verification-work product that clears every eligibility gate. Hash chains are not assumed optimal: Emile's exploration identifies regimes where Reed–Solomon-coded constructions can improve that tradeoff. This does not establish global optimality across all ROM-secure schemes.</p>
+  <p>For both stages, |σ| is the complete signature size in bytes and V is verification work in the selected profile. The positive coefficient c prices one transmitted byte in the same units as verification work. This additive model represents transmission plus verification cost; it does not multiply two costs that are paid separately.</p>
+  <p><strong>c = <span class="tbd">pending bandwidth/execution calibration</span>.</strong> It is an exact positive rational fixed by the organizers, not a submission parameter. There is no default c = 1 and no scalar ranking until that coefficient is pinned. Reports can already retain the size/verification Pareto frontier and explore explicitly labeled prices. Different security games, meters or prices are not directly comparable.</p>
+  <p>Signing and key generation are hard constraints, not score factors. The complete account profile fixes <strong>1.5 s signing, 1 minute keygen</strong> and 64 KiB working RAM on the reference wallet profile. Stage 1 component budgets must be stated for each experiment; the full account budget is not automatically assigned independently to every component. A hard latency gate requires a worst-case cap, including bounded retry exhaustion. Expected work may also be reported, but cannot establish that cap.</p>
+  <p>The academic hash-work view and full-program execution views remain separate. A Reed–Solomon encoding can improve hash work while adding substantial field arithmetic. That is useful research evidence, not a demonstrated latency improvement; the execution profile must charge that arithmetic. Preserve the frontier so the price and profile can be revisited without discarding useful constructions.</p>
 </section>
 
 <section id="rules">
-  <h2><span class="secno">4</span>Rules</h2>
-  <p>R1–R9 describe the intended <strong>complete-scheme Stage 2</strong> gates, not a claim that every gate is implemented today. Stage 1 needs its own pinned one-time game and component budgets (§7); an OTS proof does not certify a stateless account scheme. Eligibility and scoring are separate: no product score compensates for failing a required security, availability, execution-cost or memory gate.</p>
+  <h2><span class="secno">4</span>Complete-scheme eligibility rules</h2>
+  <p>These rules define the intended Stage 2 target. The protected statement implements the mathematical clauses described below, but the execution and wallet certificates remain unfinished. Stage 1 has separately pinned component or construction games (§7), not an implicit claim that a one-time signature satisfies every rule here.</p>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R1</span><span class="rule-title">Scheme class</span></div>
-    <p>The scheme is a <strong>stateless</strong> hash-based signature: key generation, signing, and verification are deterministic or randomized algorithms whose security reduces <em>only</em> to properties of hash functions modeled as random oracles. No additional algebraic hardness assumptions. Signing keeps no state between signatures (a synchronized/epoch-based variant is a separate track; see OQ-5). The competition's scheme-class policy excludes MPCiTH and VOLEiTH; that policy requires review of the actual construction, not just checking its oracle type (OQ-5).</p>
-    <p>The scheme is defined in Lean over an <strong>abstract oracle</strong> (a tweakable hash), so the construction is hash-agnostic by design. Any concrete instantiation is admissible if it is a conventional hash with no exploitable algebraic structure: SHA-2, SHA-3 / SHAKE, and BLAKE3 seed the <strong>hash registry</strong>, and further hashes join by registry PR under the same governance as R7's assumptions. Arithmetization-oriented hashes built on algebraic structure, Poseidon-style, stay out of scope. Internal digest lengths are the submitter's choice (but see R3's pressure toward 128-bit digests, and the zkVM word-size warning in §9).</p>
-    <p><strong>Public arithmetic is not an additional hardness assumption.</strong> Finite-field operations, polynomial evaluation and Reed–Solomon coding are permitted when the security proof remains ROM-only. Correlated evaluations must be modeled as correlated; a hash-output expansion does not create independent secrets for free. The optional graph-search templates are not an eligibility fence, and their current 128-bit vertex model does not yet implement byte-sized coded leaves or 136-bit seeds.</p>
-    <p class="check">audit of the actual theorem assumptions and oracle model, plus full execution metering; the oracle type alone is not a syntactic classifier of all allowed constructions</p>
+  <div class="rule" id="r1">
+    <h3>R1 · Pure random-oracle model and scheme syntax</h3>
+    <p>A submission instantiates a protected signature-scheme structure with <code>Keygen() → (pk, sk)</code>, <code>Sign(sk, m) → σ or ⊥</code> and <code>Verify(pk, m, σ) → 0 or 1</code>. There is no mutable state or epoch argument/output. Key generation and signing may use fresh randomness; verification is deterministic given the shared oracle.</p>
+    <p>All cryptographic security must be proved in the <strong>pure ROM</strong>: one arbitrary-byte-input, 32-byte-output random oracle, plus independent uniform sampling. No additional cryptographic assumptions, conjectural reductions or scheme-security hypotheses are admissible. Polynomial and Reed–Solomon coding are permitted; a family name is neither an exemption nor a reason for rejection. Domain separation is part of the actual oracle input and proof.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R2</span><span class="rule-title">Security floor: 124 bits provable, classical ROM</span></div>
-    <p>The submission proves, in Lean 4, a concrete SUF-CMA bound in the random-oracle model (strong unforgeability: the adversary must not produce any new valid signature, even for a message that was already signed): for every adversary making at most q<sub>H</sub> hash queries and q<sub>S</sub> ≤ 2<sup>20</sup> signing queries (failed signing requests count toward q<sub>S</sub>; see R8),</p>
-    <p style="text-align:center"><code>Adv(A) ≤ B(q_H, q_S)</code></p>
-    <p>where <code>B</code> is in <em>canonical form</em>: a finite sum of terms <code>c_i · q_H^{a_i} · q_S^{b_i} · 2^{-n·d_i}</code> with explicit rational constants <code>c_i</code>. Define the <strong>provable security level</strong> λ(B) as the largest λ such that B(q<sub>H</sub>, q<sub>S</sub>) ≤ q<sub>H</sub> / 2<sup>λ</sup> for all 1 ≤ q<sub>H</sub> ≤ 2<sup>λ</sup> and q<sub>S</sub> ≤ 2<sup>20</sup>. Require <strong>λ(B) ≥ 124</strong>. The floor sits deliberately below what is now known to be reachable: 127 bits are machine-checked for synchronized XMSS (OQ-1). Treat 124 as a floor, not a target.</p>
-    <p class="check">bound extracted from the Lean statement; λ(B) computed mechanically by the rule auditor</p>
+  <div class="rule" id="r2">
+    <h3>R2 · Strong unforgeability and total query work</h3>
+    <p>Prove SUF-CMA: the adversary cannot produce a new valid message/signature pair, including a different valid signature on an already-signed message. Only an exact successful signing response is a replay. Every signing request counts, including repeats and responses returning ⊥.</p>
+    <p>Let q<sub>H</sub> bound <strong>raw hash calls across the whole experiment</strong>: key generation, adversarial hashing, honest signing and final forgery verification. It excludes uniform sampling. Let q<sub>S</sub> bound signing requests and define <strong>Q = q<sub>H</sub> + q<sub>S</sub></strong>. These are pathwise query bounds, not expected costs. Raw hash queries are distinct from the input-weighted verification meter.</p>
+    <p>For the declared bound B, prove Adv<sub>SUF-CMA</sub> ≤ B(Q, q<sub>S</sub>). At up to 2<sup>20</sup> signing requests, certify B(Q, 2<sup>20</sup>) ≤ Q / 2<sup>124</sup> for 1 ≤ Q ≤ 2<sup>124</sup>. This is the competition's concrete 124-bit classical work/probability floor, not a NIST-category or quantum-security certificate.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R3</span><span class="rule-title">Idealized bound: 128 bits with constants dropped</span></div>
-    <p>Let <code>B̃</code> be <code>B</code> with every constant <code>c_i</code> replaced by 1. Require <strong>λ(B̃) ≥ 128</strong>.</p>
-    <p>This is the SPHINCS+ convention made mechanical: the r3.1 specification computes bit security while "neglecting the small constant factors inside the logarithm" (§7.1.1). R2+R3 together land submissions where NIST level 1 in practice lands: a real proof within a few bits of 128, where the missing bits are exactly the log-of-constant losses that every accepted security argument in this literature absorbs. Because the canonical form makes "the constants" a syntactic object, dropping them is a computation, not a judgment call.</p>
-    <p class="check">same auditor as R2, run on B̃</p>
+  <div class="rule" id="r3">
+    <h3>R3 · Fixed, explicit bounds with exact constants</h3>
+    <p>B(Q, s) is a fixed explicit sum of 1–128 monomials <code>(num / den) * Q^a * s^b / 2^k</code>, with positive rational coefficients and natural exponents. The list length, coefficients and exponents must not depend on Q or s. In particular, a sum whose number of terms scales with a query budget is not this format.</p>
+    <p>All constants remain in the bound. There is no constants-dropping eligibility rule. For a signing cap S and bit threshold b, the protected certificate checks <code>B(1, S) ≤ 2^-b</code> and <code>B(2^b, S) ≤ 1</code>. Convexity proves the required inequality throughout the interval; nonnegative coefficients make the fixed signing cap conservative for smaller request budgets.</p>
+    <p>This fixed-cap certificate also checks numerical points with Q &lt; S, even though a run using S signing requests cannot have total budget Q &lt; S. It is a conservative sufficient gate, not a claim to compute the tightest possible security level over feasible budget pairs. Arithmetic and the format limits are exact, not floating-point estimates.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R4</span><span class="rule-title">Slow decay: security beyond the rated lifetime</span></div>
-    <p>Re-evaluating the same bound at q<sub>S</sub> ≤ 2<sup>32</sup> must give <strong>λ(B) ≥ 100</strong>. A key pushed 4096× past its rated lifetime degrades gracefully instead of falling off a cliff.</p>
-    <p class="check">same auditor as R2, with q_S = 2^32</p>
+  <div class="rule" id="r4">
+    <h3>R4 · Graceful decay for the same scheme</h3>
+    <p>The <strong>same scheme, parameters and bound B</strong> must retain a 100-bit floor at 2<sup>32</sup> signing requests: B(Q, 2<sup>32</sup>) ≤ Q / 2<sup>100</sup> for 1 ≤ Q ≤ 2<sup>100</sup>. The security theorem itself must cover that extended request range. Evaluating a polynomial outside a theorem's scope is insufficient; a reparameterized scheme cannot supply this certificate.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R5</span><span class="rule-title">Quantum security: heuristic, not proved in-competition</span></div>
-    <p>No QROM proof is required. The working heuristic is <em>quantum security ≈ classical security / 2</em>, giving ≥ 62-bit QROM at 2<sup>20</sup> signatures and ≥ 50-bit at 2<sup>32</sup> from R2/R4; this meets the 64-bit target up to the same constant-factor tolerance R3 grants classically. A QROM proof for the winning scheme is a post-competition deliverable of the organizers, not the entrants. Requiring it in-competition would multiply the formalization burden for every entrant to certify a bound we expect to hold generically for ROM proofs of this shape.</p>
-    <p class="check">none (follows from R2/R4 by the stated heuristic)</p>
+  <div class="rule" id="r5">
+    <h3>R5 · Quantum analysis is separate</h3>
+    <p>A QROM theorem is not an entry requirement. A classical ROM proof does not establish a generic “classical bits divided by two” quantum guarantee. Further quantum analysis is desirable evidence for deployment review, not a promised post-competition formalization by the organizers.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R6</span><span class="rule-title">Public key ≤ 64 bytes</span></div>
-    <p>The serialized public key is at most 64 bytes. (Keys are meant to live on-chain; a Merkle root plus parameters fits comfortably.)</p>
-    <p class="check">static check on the reference implementation's serialization</p>
+  <div class="rule" id="r6">
+    <h3>R6 · Public key at most 32 bytes</h3>
+    <p>The serialized public key is at most <strong>32 bytes</strong> on every key-generation path. A construction may hash a larger key and reveal it inside each signature, but must include those bytes, verification work and the domain-separated commitment's security reduction. A generic 256-bit collision allowance is of order Q² / 2<sup>256</sup>; it is not a free transformation or an automatically accepted bound.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R7</span><span class="rule-title">End-to-end Lean 4, with a governed assumption registry</span></div>
-    <p>The R2 theorem is proved in Lean 4 in <strong>VCVio</strong>, on a statement layer built over its <strong>HashSig</strong> library (OQ-1). The statement/proof separation follows the XMSS formalization on leanVM-b's <span class="mono">xmss-fv</span> branch: the pinned statement lives in one file a reviewer can read without proof machinery, the claim is discharged in a root module, and the axiom footprint is pinned with <code>#guard_msgs</code> so the build fails if it ever grows. Two proof styles are admissible, and the rules must not privilege either:</p>
-    <ul>
-      <li><strong>Direct ROM arguments</strong>: the bound proved outright against the random oracle.</li>
-      <li><strong>Modular reductions (2025/055-style)</strong>: the scheme reduces to named idealized-hash properties (multi-target undetectability, collision-resistance variants, …), each of which carries a normative attack-complexity bound.</li>
-    </ul>
-    <p>For the modular style, terminal assumptions must come from the <strong>assumption registry</strong>: a versioned list in the rules repo, each entry a property with its assigned generic-attack bound (proven in the ROM where possible, conjectured with cryptanalytic justification otherwise). Registry additions go through a human-reviewed PR, the one deliberate exception to full automation, because an entrant must not be able to invent a conveniently strong assumption. The registry is seeded from the properties and bounds of ePrint 2025/055 and the SPHINCS+ line of analysis.</p>
-    <p class="check">lake build, zero sorry, axiom footprint pinned via #guard_msgs, assumption set ⊆ registry</p>
+  <div class="rule" id="r7">
+    <h3>R7 · One complete Lean theorem</h3>
+    <p>Provide an end-to-end Lean proof for the protected scheme and pure-ROM game. Internal modular reductions are welcome, but all their premises must be discharged in that final theorem. There are no separate assumption-registry or proof-style exceptions. The theorem and algorithm axiom closures may use only <code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code>; no <code>sorry</code>, conjectural axioms or unproved cryptographic premises.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R8</span><span class="rule-title">Interface conformance</span></div>
-    <p>Intended full API: <code>keygen(seed) → (pk, sk, cache)</code>, <code>sign(sk, cache, msg) → σ or ⊥</code>, <code>verify(pk, msg, σ) → bool</code>, plus an optional non-secret <code>presign</code> stage (§5.3). Signing may <strong>explicitly fail</strong> (return ⊥): bounded-attempt grinding and target-sum encodings need a way to give up without emitting an invalid signature or looping forever. The implemented claim has two separate obligations: successful outputs verify with probability one; and, for each fixed message, the failure probability over fresh key generation, signing randomness and the shared oracle is at most 2<sup>−128</sup>. A stronger certificate such as 2<sup>−256</sup> qualifies. This is a per-message, fresh-key gate, not an adaptive lifetime-availability guarantee; it does not move the 124-bit floor and adds no scored metric.</p>
-    <p>In the implemented SUF-CMA game a failed request is visible and consumes signing budget; only a successful message-signature pair can count as a replay. Exact signature size covers successful outputs. The full game must additionally expose the <code>presign</code> transcript and make the <code>cache</code> adversary-<em>replaceable</em> (R9, §5.2); those channels are not in the legacy claim. Messages are 32 bytes, verification is deterministic given oracle answers, and serialization must be byte-exact. The intended reference implementation targets RISC-V, with <code>no_std</code> Rust on the wallet side and a proved connection to the Lean scheme.</p>
-    <p>Worst-case failure analysis is separate from worst-case signing work. The experimental adaptive failure envelope requires a conditional success/failure-mass premise in the actual ROM/cache game, with explicit allowances for exceptional cached steps. A 2<sup>−128</sup> single-request allowance does not establish 2<sup>−128</sup> failure over an entire lifetime. The stronger adversarial/lifetime availability profile remains <span class="tbd">to be pinned and proved</span>; no such theorem is inferred from codebook size alone.</p>
-    <p class="check">conformance test vectors plus the corresponding Lean correctness and availability obligations; auxiliary-channel game integration remains launch work</p>
+  <div class="rule" id="r8">
+    <h3>R8 · Byte interface, correctness and signing failure</h3>
+    <p>Messages are 32-byte digests. Public keys and signatures are actual byte strings. Every successful signature has exactly the declared length, including padding, and verifies with probability one in the fresh key-generation/signing experiment. Separately prove Pr[Sign returns ⊥] ≤ 2<sup>−128</sup> for each fixed message, over fresh key generation, signing randomness and their shared ROM. A 2<sup>−256</sup> certificate also qualifies.</p>
+    <p>This is <strong>not an adaptive lifetime-availability guarantee</strong> or a conditional guarantee for every generated key. Worst-case failure analysis is separate from work metering; stronger adaptive guarantees need a stated game and proof. Failed attempts must still fit the resource cap.</p>
+    <p>Immutable precomputation may be part of sk and must be charged to key generation and storage. There is no required separate cache or presign channel. Public disclosure or adversarial replacement of auxiliary data would require an explicitly modeled extension; it is not covered merely by calling that data non-secret.</p>
   </div>
 
-  <div class="rule">
-    <div class="rule-head"><span class="rid">R9</span><span class="rule-title">Wallet-side budgets</span></div>
-    <p>On the wallet cost vector (§5.2): key generation ≤ 1 minute and signing ≤ 1.5 s at the 160 MHz anchor, signer RAM ≤ 64 KiB (the user RAM of the Ledger Nano S+ secure element), plus a <strong>persistent non-secret cache of ≤ 4 KiB</strong>, written at key generation and readable at signing (§5.2). The caps bind the wallet-side stages only; delegated pre-signing has its own budget (§5.3).</p>
-    <p>v0.16 fixes these as the competition's work budgets: signing stays at 1.5 s, key generation moves from 45 s to 1 minute, and both leave the score (§3). The 5-second signing / 5-minute keygen proposal was not adopted. In the hash-work view the budgets read S ≤ 8.5 × 10<sup>4</sup> and K ≤ 3.4 × 10<sup>6</sup> hash-work units, the anchor's hash-only equivalents (§5.2); the cycle-based profile, once pinned, gates on metered execution cost instead. Hard limits must include encoding, finite-field and big-integer operations, allocations, table preparation and all permitted retries. Failing before the deadline does not waive R8's availability gate. A hash-only score or average timing run is not a worst-case latency certificate.</p>
-    <p class="check">required wallet execution/memory gates (§5.2); not enforced by the current legacy MVP harness</p>
+  <div class="rule" id="r9">
+    <h3>R9 · Wallet and complete-program resource gates</h3>
+    <p>The intended complete-account limits are <strong>key generation ≤ 1 minute and signing ≤ 1.5 s</strong>, with <strong>64 KiB working RAM</strong>. Reference hardware calibration, persistent secret/precomputation storage limits and the verification execution cap are <span class="tbd">to be pinned</span>. There is no separate free 4 KiB cache allowance.</p>
+    <p>All work counts: randomness handling, encoding, finite-field and integer arithmetic, memory access, bounded retries and authentication. A fixed conversion from abstract hash units to seconds cannot establish these limits. These resource gates are <strong>not enforced by the current statement/harness</strong>; they require a bound on the complete executable linked to the Lean scheme before eligibility can be claimed.</p>
   </div>
 
   <h3>The required theorem, in shape</h3>
-  <p>Illustrative only; the normative Lean statement lives in the rules repo:</p>
-  <pre><code>theorem leanSPHINCS_suf_cma
-    (A : Adversary) (hH : A.queriesH ≤ qH) (hS : A.queriesS ≤ 2^20) :
-    sufCmaAdvantage SIG A ≤ B qH A.queriesS := by
-  ...
--- B in canonical form, e.g.
--- B qH qS = c₁ * qH / 2^n + c₂ * qS * qH / 2^(2*n) + ...
--- alongside: correctness on success, and Pr[sign = ⊥] ≤ 2^-128 per message (R8)</code></pre>
+  <p>This is an explanatory summary, not Lean source. The normative implemented structure is <a href="https://github.com/nconsigny/leansphincs/blob/main/LeanSphincs/Benchmark/Claim.lean">SchemeClaim</a>; it also includes the correctness, failure, size and verification obligations above.</p>
+  <pre><code>for the same scheme S and fixed bound B:
+  for every adversary with raw whole-game hash budget qH
+      and signing-request budget qS ≤ 2^32:
+    Adv_SUFCMA(S, A) ≤ B(qH + qS, qS)
 
-  <h3>Trick categories and proof templates</h3>
-  <p>The proof burden should not restart from zero for every submission. The plan: the rules repo categorizes the known SPHINCS-family optimization tricks and ships a Lean-proved security template per category, built on HashSig. Submissions declare which categories they compose and instantiate the templates; a genuinely new trick enters by contributing a new template through the same registry governance as R7. The seed taxonomy, drawing on the Blockstream Research SPHINCS-Parameters work:</p>
-  <ul>
-    <li><strong>Grinding / compression</strong>: WOTS+C, FORS+C (signer retries buy shorter signatures).</li>
-    <li><strong>Checksum elimination</strong>: target-sum Winternitz.</li>
-    <li><strong>Authentication-path compression</strong>: octopus-style multi-path batching, stripping redundant nodes across the few-time layer's Merkle openings.</li>
-    <li><strong>Few-time layer choice</strong>: FORS vs. PORS+FP.</li>
-    <li><strong>Tree shape</strong>: hypertree layering, tall cached top trees (R9's 4 KiB cache).</li>
-    <li><strong>Encodings</strong>: incomparable and hypercube encodings from the leanSig line.</li>
-  </ul>
+  for every 1 ≤ Q ≤ 2^124: B(Q, 2^20) ≤ Q / 2^124
+  for every 1 ≤ Q ≤ 2^100: B(Q, 2^32) ≤ Q / 2^100
+
+  publicKeyBytes ≤ 32
+  successfulSignatureBytes = declaredSigma
+  verificationWork ≤ declaredHVerify   // malformed inputs included
+  correctnessOnSuccess
+  freshKeyFixedMessageFailureProbability ≤ 2^-128</code></pre>
 </section>
 
 <section id="costmodels">
-  <h2><span class="secno">5</span>Cost model: one machine, multiple explicit profiles</h2>
-
-  <p id="oracle-work"><strong>Oracle and hash-work meter, pinned in v0.15:</strong> arbitrary-length byte-string input → <strong>32-byte output</strong>. Each call costs <code>ceil(inputBytes / 64)</code> units, counting all supplied input bytes, including domain separation and length encoding. Sum the per-call ceilings; do not round once after adding lengths across calls. Repeated queries are charged again, even when their answers are cached.</p>
-  <div class="tablewrap">
-  <table>
-    <tr><th>Supplied input bytes</th><th class="num">Hash-work units per call</th></tr>
-    <tr><td>0</td><td class="num">0</td></tr>
-    <tr><td>1–64</td><td class="num">1</td></tr>
-    <tr><td>65–128</td><td class="num">2</td></tr>
-    <tr><td>129–192</td><td class="num">3</td></tr>
-  </table>
-  </div>
-  <p>The empty-input case follows the literal ceiling formula; it is not exempt from raw security-query counting or execution metering. A 64-byte payload plus a 16-byte tag costs two units. A 64-byte output requires multiple calls: the input unit does not change the oracle's fixed 32-byte output.</p>
-  <p>This supersedes v0.14's 32-byte input units and one-unit minimum. v0.16 changes the ranking only and leaves this meter unchanged: <code>ceil(inputBytes / 64)</code> per call, 32-byte output. Current receipts identify <code>rom256-input64-ceil-v1</code>. Older results are historical and must not be mixed with the new meter; regenerate certificates and receipts against the versioned statement.</p>
-
-  <p>The planned execution model runs all stages in a single <strong>fully virtualized RISC-V environment</strong>, recording oracle work, memory accesses (loads and stores), and other executed instructions. A deployment surface supplies registered weights and resource caps. This is a common comparison model, not a claim that RISC-V instructions translate one-for-one into ARM wall-clock time.</p>
-
-  <div class="tablewrap">
-  <table>
-    <tr><th>Surface</th><th>Stages</th><th>Cost vector</th><th>Role in the rules</th></tr>
-    <tr><td>Hash-work research view</td><td><span class="mono">keygen, sign, verify</span></td><td>(1, 0, 0): input-block-weighted oracle calls</td><td><strong>V in §3; S and K against the R9 budgets; not sufficient for deployment eligibility</strong></td></tr>
-    <tr><td>Cycle-based research view</td><td><span class="mono">keygen, sign, verify</span></td><td>registered instruction, memory and hash execution costs</td><td>same objective and budgets; full work including encoding; profile <span class="tbd">to be pinned</span></td></tr>
-    <tr><td>zkVM verification</td><td><span class="mono">verify</span></td><td><span class="tbd">w<sub>hash</sub>, w<sub>mem</sub>, w<sub>cycle</sub></span> calibrated from zkVM cost data (§5.1, OQ-2)</td><td>reported: zkVM view (§6)</td></tr>
-    <tr><td>Hardware wallet, secret path</td><td><span class="mono">keygen, sign</span></td><td>registered software-hash and instruction/memory costs (§5.2)</td><td>capped: R9</td></tr>
-    <tr><td>Untrusted host, non-secret</td><td><span class="mono">presign</span></td><td>all meters at 1</td><td>capped: <span class="tbd">2<sup>36</sup> weighted cycles</span> per invocation (§5.3)</td></tr>
-    <tr><td>Native execution layer (RISC-V gas)</td><td><span class="mono">verify</span></td><td>one cycle, one gas: everything at 1, an oracle call at the registered hash's software cycle count</td><td>reported: gas metric (§6)</td></tr>
-  </table>
-  </div>
-
-  <p>The intended payoff is reproducibility: a pinned binary, input, oracle-answer trace and metering profile produce the same counts. A new compiler or profile is a new comparison context, not silently interchangeable evidence. The target is to bind both score factors and every work and resource gate to the actual program. Today only the verification metric and experimental graph schedules have the corresponding weighted-query proofs; full cycle metering and the signing and keygen budget certificates remain to implement.</p>
-
-  <p>A hash-work unit is <strong>not</strong> a concrete compression block or an instruction, even though the input unit is now 64 bytes. Retain query lengths and domain-separation layout: concrete-hash padding, initialization, output expansion and the chosen hash affect execution cost. A fixed multiplier on the aggregate hash-work count is not generally an exact cycle conversion. The concrete-hash profile must account for that work once, without also double-charging instructions used to implement the same hash.</p>
-  <p>The <a href="https://github.com/Verified-zkEVM/riscv-zkvm">riscv-zkvm interpreter</a> is the intended foundation. Oracle integration, metering and the connection between the Lean scheme and its executable still need implementation and proof. A verified trace would certify that execution under the selected model; it would not alone prove a worst-case bound over all inputs, randomness and oracle histories.</p>
-
-  <h3><span class="secno">5.1</span>The verification views</h3>
-  <p>The zkVM view prices what Ethereum pays to SNARK-aggregate signatures; its weights are calibrated from published zkVM cost data rather than tied to any single zkVM release. Anchor: a production accelerator table prices SHA-256 at 68 cycles per 64-byte block (+6 init), and precompiles generally cut hashing 5–10× versus pure RV32IM. Fixing the exact weights, with a published rationale per registered hash, is OQ-2.</p>
-  <p>Published compression-call figures are useful context, but do not automatically equal the competition's block-weighted H<sub>verify</sub>. They must be re-metered under the same oracle, input encoding and domain-separation convention before comparison. Encoding and field arithmetic must also be included in the execution view.</p>
-  <p>Hash counts can inform an EVM gas estimate, but miss arithmetic, decoding, memory and other costs. Likewise, the native RISC-V row is a proposed one-cycle/one-gas comparison profile, not an assertion about an adopted Ethereum gas schedule. Concrete deployment claims require the corresponding executable and pinned pricing model.</p>
-  <p>Following zk.golf, the goal is <strong>certified quantities</strong>, not optimistic timing samples. A full claim must bind exact serialization, V and the budgeted S and K to the implementation, bound signing work in the worst case, and certify the chosen execution profile. Worst-case bounds must include malformed verification inputs and retry exhaustion. A measured average can inform engineering but cannot replace those proof obligations.</p>
-
-  <h3><span class="secno">5.2</span>The wallet vector (secret path)</h3>
-  <p>The wallet model retains the <strong>160 MHz MCU anchor</strong> and published SHA-256 software benchmark of approximately 44 cycles/byte as calibration inputs, not a certified conversion for every hash or program. The 64 KiB RAM budget was chosen from the Ledger Nano S+ secure-element profile (ST33K1M5C). No hardware hash accelerator is assumed (OQ-3). R9's time budgets correspond arithmetically to 9.6 × 10<sup>9</sup> anchor cycles for key generation and 2.4 × 10<sup>8</sup> for signing. A calibrated execution model, device validation and direct memory high-water accounting are still required; the current harness does not enforce these wallet limits.</p>
-  <div class="tablewrap">
-  <table>
-    <tr><th>Budget</th><th class="num">Target</th><th class="num">≈ 64-byte SHA-256 blocks @ 44 cpb, 160 MHz; hash-only estimate</th></tr>
-    <tr><td>Key generation</td><td class="num">1 min</td><td class="num">~3.4 × 10<sup>6</sup></td></tr>
-    <tr><td>Signing</td><td class="num">1.5 s</td><td class="num">~8.5 × 10<sup>4</sup></td></tr>
-    <tr><td>Signer RAM</td><td class="num">64 KiB</td><td class="num">—</td></tr>
-    <tr><td>Non-secret cache (written at keygen)</td><td class="num">4 KiB</td><td class="num">—</td></tr>
-  </table>
-  </div>
-  <p class="tablecaption">The keygen budget admits designs that do real one-time work at key setup (roughly 3.4 million hash blocks of headroom); the signing budget leaves comfortable margin for grinding-style tricks. The RAM cap is the binding constraint: 64 KiB forces streaming Merkle computation instead of large in-memory state. The cache is what makes tall top trees affordable to sign with: in a height-14 top layer, keygen can store all 128 depth-7 digests (128 × 32 B = 4 KiB), and signing then rebuilds one height-7 subtree plus the cheap upper path, 2<sup>7</sup> leaf derivations instead of 2<sup>14</sup>. A square-root saving, paid once at keygen.</p>
-
-  <p>The intended auxiliary-channel game lets the adversary read and <em>replace</em> the cache. A security proof must cover the actual disclosure and replacement behavior; “non-secret” is not established by naming it a cache. Authentication, rejection or recomputation must be charged to the execution budget. Availability under cache corruption needs its own explicit policy; the current fresh-key failure theorem does not establish it. This game extension is not implemented in the legacy claim.</p>
-
-  <h3><span class="secno">5.3</span>The host vector (non-secret pre-signing)</h3>
-  <p>Splitting the signer in two is where the unified environment earns its keep. In hash-based schemes much of the signer's work is not secret at all: Merkle tree assembly over already-derived leaf public keys, auth-path maintenance, and similar bookkeeping can run on an ordinary computer. The interface therefore includes an optional <code>presign</code> stage (R8), invoked at key setup or ahead of a signature, that runs on the host surface with a generous budget.</p>
-  <p>The intended security game exposes the <code>presign</code> stage's entire input/output transcript to the adversary. This must be incorporated into the theorem before delegation is eligible; the current legacy game has no presign channel. The profile must also specify how host work is accounted against the fixed signing and keygen budgets, alongside its separate host budget. Neither secrecy nor a zero-cost setup exemption follows from calling work non-secret.</p>
+  <h2><span class="secno">5</span>Oracle and execution meters</h2>
+  <h3>5.1 · The academic hash-work profile</h3>
+  <p>The oracle has arbitrary byte-string input and a <strong>32-byte output</strong>. Meter <code>rom256-input64-ceil-v1</code> charges <code>ceil(inputBytes / 64)</code> for each query, including domain separation and every other supplied byte. <strong>Sum the per-call ceilings</strong>, not the ceiling of total input bytes. Repeated calls are charged again even when the ROM returns an already cached answer.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Input bytes per call</th><th class="num">Hash-work units</th><th class="num">Raw security queries</th></tr>
+    <tr><td>0</td><td class="num">0</td><td class="num">1</td></tr>
+    <tr><td>1–64</td><td class="num">1</td><td class="num">1</td></tr>
+    <tr><td>65–128</td><td class="num">2</td><td class="num">1</td></tr>
+    <tr><td>129</td><td class="num">3</td><td class="num">1</td></tr>
+  </table></div>
+  <p>The empty-input case follows the literal ceiling. Zero hash-work weight does not mean zero raw queries or execution cost. An abstract unit is <strong>not a concrete compression block or an instruction</strong>: padding, output expansion and a real hash implementation belong to a separately specified execution profile.</p>
+  <h3>5.2 · The complete-program profile</h3>
+  <p>The planned RISC-V profile records hash operations, instructions and memory work in one deterministic environment. It must bind the executable to the proved algorithms and cover key generation, signing and verification, including malformed inputs and failed retries. Benchmark samples are useful for calibration but would not alone prove a worst-case bound.</p>
+  <p>Execution prices, verifier limits and wallet calibration remain <span class="tbd">unfinished</span>. No aggregate hash-throughput estimate certifies the 1.5-second or 60-second gate. An encoding saving 5% of hash work while adding expensive arithmetic must retain both sets of measurements; it is not automatically an execution improvement.</p>
 </section>
 
 <section id="scoring">
-  <h2><span class="secno">6</span>Scoring, submissions, leaderboard</h2>
-  <ul>
-    <li><strong>Shared objective</strong> = |σ| × V, with signing and keygen work held to the fixed R9 budgets. Compare the exact integer <code>|σ| * V</code>; lower wins. This applies separately within each stage and frozen metering/signing profile, subject to its hard gates.</li>
-    <li><strong>Metrics panel</strong>: retain size; hash work for keygen, signing and verification; corresponding RISC-V instruction/memory costs; RAM and cache high-water marks; and signing-failure/work bounds. Encoding, polynomial arithmetic and codebook unranking are included in execution cost, not hidden behind a hash-count improvement.</li>
-    <li><strong>Re-rankable</strong>: preserve the full frontier and reproducible raw evidence. Show the hash-work and registered cycle-based products separately. Stage 1 exposes this as two tabs: <strong>Spacetime</strong>, the |σ| × V ranking, and <strong>Pareto</strong>, the size/verification frontier at the fixed budgets; Stage 2 follows the same layout once it opens. Selection of the final prize profile is <span class="tbd">pending calibration and review</span>; no award follows from an incomplete hash-only experiment.</li>
-    <li><strong>Promotion</strong>: once open, an eligible submission may improve the profile's score or its full cost frontier. Published records must state stage, game, metric semantics, profile and verifier provenance. The current unranked receipt or an experiment JSON cannot promote itself.</li>
-    <li><strong>Review gate</strong>: topping the CI leaderboard does not make a scheme <em>the</em> scheme. Automated checks decide eligibility and rank; a manual review by the organizers and the leanSig authors stands between the leaderboard and any award or adoption, to keep out submissions that satisfy the letter of the rules while missing their point. Review outcomes are published with reasons.</li>
-    <li><strong>Credit</strong>: every promotion is credited to the solver <em>and</em> the model used; the leaderboard publishes the score history, improvement-per-model, and the live Pareto frontier. The rules are the same for humans and agents; that is the point of making them mechanical.</li>
-    <li><strong>Ties</strong> break toward the smaller signature first (size outlasts verification cost; §3), then by earlier submission timestamp; a re-submission resets the timestamp.</li>
-    <li><strong>Reproducibility</strong>: the CI pipeline is the ground truth; anyone can re-run it. Scores are published with full logs and the exact harness commits.</li>
-    <li><strong>Rules bounty</strong>: exploits of the harness, the comparator, or the rule text are in scope, credited on the leaderboard, and patched with a rules-version bump.</li>
-    <li><strong>Prizes and timeline</strong>: <span class="tbd">TBD</span>.</li>
-  </ul>
+  <h2><span class="secno">6</span>Submissions, scoring and credit</h2>
+  <p>The planned <strong>Cost</strong> tab ranks <code>c * signatureBytes + verificationWork</code> using exact rationals after all profile gates pass. It remains pending until c is calibrated. The <strong>Pareto</strong> tab retains nondominated size/verification points at matched signing, keygen and memory budgets. Neither tab mixes games or metering profiles.</p>
+  <p>Keep the full keygen/signing/verification, size, memory and failure evidence with each result, along with source hashes, dependencies, verifier provenance, stage and profile. An entrant cannot set the organizer's price or promote its own receipt. Ties break by smaller signatures and then earlier accepted submission time.</p>
+  <p>Promotions are credited to the solver and, where used, the model. Research and rules-bounty credit are curated separately from numeric rank (§2). Awards and adoption require human review with published reasons. <span class="tbd">Prizes, timeline, protected-module governance and independent verifier registration remain open.</span></p>
 </section>
 
 <section id="mvp">
-  <h2><span class="secno">7</span>Two stages and the legacy MVP</h2>
-  <h3>Stage 1 · primitives, not just WOTS</h3>
-  <p>Stage 1 is the academic research track: it measures pure hash work, oracle calls weighted by input bytes / 64, so huge inputs cannot hide work in a single call. Search for the best provably secure OTS primitives and retain a full cost frontier: chains, target-sum/hypercube encodings, branching graphs, shared seeds and ROM-secure coded constructions. Optional proof templates accelerate search; an open direct-proof route must admit constructions beyond those templates. “Best found” is not “globally optimal”: a lower-bound result must name the precise family and cost model it covers. The Stage 1 board has two tabs. <strong>Spacetime</strong> ranks primitives by signature bytes × verification work under the fixed signing and keygen budgets; <strong>Pareto</strong> shows the full size/verification frontier at those budgets, so a primitive that is not the product winner but dominates a region stays visible. Both tabs share one metering profile and never mix profiles.</p>
-  <p>The initial target is strong one-time unforgeability, with at most one signing request, plus correctness, exact canonical serialization, cost bounds and signing availability. The precise standalone chosen-message versus internal-root signing game remains <span class="tbd">to be agreed with the construction authors</span>. Multi-instance security and same-message repeat-signing behavior need explicit composition contracts; none is inferred from a single-instance OTS theorem. Stage-specific primitive signing and keygen budgets, fractions of the full-scheme R9 budgets, must also be pinned before eligibility opens.</p>
-  <h3>Stage 2 · complete stateless account signatures</h3>
-  <p>Stage 2 is the Ethereum selection track. Compose promising primitives with few-time components, hypertrees and authentication-path compression, then re-prove the complete stateless SUF-CMA game and measure every lifecycle stage. Use the same objective, the full-scheme R9 work budgets and the other hard gates. Baseline #0 is intended to be a <strong>SPHINCS⁻ variant satisfying the competition claim</strong>, not a metric canary or a standalone OTS. Emile's formal SPHINCS line is the leading integration route; its security proof is not yet a serialized, cost-certified competition entry.</p>
-  <h3>What the existing phase-0 harness actually checks</h3>
-  <p>The legacy MVP remains an engineering test profile, not either new leaderboard:</p>
-  <ol>
-    <li><strong>Classical ROM claim.</strong> The protected claim uses the 124-bit floor at 2<sup>20</sup> signing requests, correctness on success, a separate fresh-key signing-failure gate, exact signature size and the public-key cap. It does not enforce the idealized companion, lifetime decay or QROM rules.</li>
-    <li><strong>One oracle, no named hash.</strong> Variable-length input, <strong>N B → 32 B</strong>. The implemented verification meter now charges <code>ceil(inputBytes / 64)</code> per call, including supplied domain-separation bytes, as pinned in §5. The security game separately counts raw whole-experiment queries, including empty inputs.</li>
-    <li><strong>Legacy score.</strong> The three declared files remain <code>sigma.txt</code>, <code>hverify.txt</code> and <code>bound.txt</code>. Local success reports |σ| × H<sub>verify</sub>, explicitly unranked; that product is now the objective's formula, but the protected comparator does not yet bind the signing and keygen budget certificates. Do not submit additional metric files as though they were accepted.</li>
-    <li><strong>Isolation, not deployment certification.</strong> The Linux sandbox, source capture, comparator, axiom audits, content-bound receipts and admission lock are implemented. RISC-V metering, wallet/presign/cache gates, signed verifier attestation and production registration are not.</li>
-    <li><strong>No cryptographic baseline yet.</strong> Positive comparator fixtures prove only metric statements. Side-channel and fault-resistance certification also remains outside this engineering profile.</li>
-  </ol>
-  <p>Wallet-side caps (R9) and presign/cache requirements stay defined for Stage 2 but are not gating in the legacy MVP. Full eligibility must not inherit that exemption. See <a href="https://github.com/nconsigny/leansphincs/blob/main/SUBMISSION.md">the implemented submission contract</a> for what can actually be verified today.</p>
+  <h2><span class="secno">7</span>Research stages and implementation</h2>
+  <h3>Stage 1 · academic research beyond OTS</h3>
+  <p>Stage 1 is the academic research track. It includes one-time and few-time primitives, message encodings, authentication structures, domain-separated composition and complete constructions. OTS is an initial experiment, not the boundary of the academic competition. Each board needs its own pinned security game, request/instance budgets and resource profile; only comparable entries share a ranking.</p>
+  <p>Standard hybrid arguments can lift suitable single-instance security to multiple instances, generally with a loss. State and account for that loss and the conditions under which the argument applies. Shared random-oracle domains, seed-derived keys and the way a component is actually used in SPHINCS still need to match the reduction; an internal OTS is not automatically used as a fully black-box standalone scheme.</p>
+  <p><a href="https://github.com/nconsigny/leansphincs/blob/main/OTS_STAGE1.md">The experimental OTS library</a> supplies graph evaluation, reconstruction, cost arithmetic and conditional failure envelopes. It is not a protected OTS security target. Direct pure-ROM proofs must remain possible beyond any optional construction template; lower-bound results must name the family and cost model they cover.</p>
+  <h3>Stage 2 · complete Ethereum account signatures</h3>
+  <p>Stage 2 is the Ethereum selection track. It measures complete stateless constructions, with SUF-CMA, the normal and extended-lifetime floors and all deployment gates. Size includes the whole serialized signature, not just a WOTS component or authentication fragment.</p>
+  <h3>What the local harness currently verifies</h3>
+  <p>The <a href="https://github.com/nconsigny/leansphincs/blob/main/SUBMISSION.md">three-file declaration contract</a> remains <code>sigma.txt</code>, <code>hverify.txt</code> and <code>bound.txt</code>, alongside the scheme and proof sources. The revised protected statement uses total work Q, a 32-byte public key and same-scheme decay. The coefficient c is stored in organizer-owned scoring configuration, not in a fourth entrant file.</p>
+  <p>The runner is <strong>explicitly unranked</strong>, and does not yet bind the signing and keygen budget certificates or full-program execution costs. With c unset it issues no scalar score. Positive metric canaries test comparator matching only. <strong>No cryptographic baseline yet</strong>: passing those fixtures is not an accepted signature scheme or a launch decision.</p>
 </section>
 
-<section id="baselines">
-  <h2><span class="secno">8</span>Baselines to beat</h2>
-  <p><strong>No leaderboard entry has been accepted yet.</strong> Baseline #0 must be a SPHINCS⁻ variant meeting the actual complete-scheme claim, including byte serialization, game transport, cost certificates and signing availability. The following generalized-XMSS literature figures are contextual comparisons, not eligible stateless baselines; they cannot be ranked under the new objective without K/S certificates and matching profiles.</p>
-  <div class="tablewrap">
-  <table>
-    <tr><th>Instantiation</th><th>Hash</th><th class="num">Lifetime</th><th class="num">|σ|</th><th class="num">Verify (hashes)</th></tr>
-    <tr><td>TSW, w=4 (2025/055)</td><td>SHA-3</td><td class="num">2<sup>18</sup></td><td class="num">1.39 KiB</td><td class="num">—</td></tr>
-    <tr><td>TSW, w=2, δ=1.1 (2025/055)</td><td>SHA-3</td><td class="num">2<sup>18</sup></td><td class="num">2.22 KiB</td><td class="num">≈ 160</td></tr>
-    <tr><td>Winternitz range (2025/055)</td><td>SHA-3</td><td class="num">2<sup>18</sup></td><td class="num">1.06–4.17 KiB</td><td class="num">—</td></tr>
-    <tr><td>Top-layer TSW, v=64, w=8 (2025/1332)</td><td>Poseidon2</td><td class="num">2<sup>32</sup></td><td class="num">3.03 KiB</td><td class="num">—</td></tr>
-    <tr><td>Top-layer TSW, v=32, w=26 (2025/1332)</td><td>Poseidon2</td><td class="num">2<sup>32</sup></td><td class="num">2.03 KiB</td><td class="num">—</td></tr>
-  </table>
-  </div>
-  <p class="tablecaption">Published lifetimes differ from this competition's 2<sup>20</sup> target; treat as order-of-magnitude anchors. The b-wagn/hash-sig prototype (now continued in leanEthereum/leanSig) implements the SHA-3 rows.</p>
+<section id="baseline">
+  <h2><span class="secno">8</span>Baseline #0</h2>
+  <p>The intended first accepted entry is a SPHINCS⁻ variant meeting these requirements. The <a href="https://github.com/nconsigny/leansphincs/blob/main/PR19_REVIEW.md">pinned PR #19 review and local reproduction</a> establish a useful 126-bit classical SUF-CMA theorem at up to 2<sup>24</sup> signing requests, not an accepted competition entry.</p>
+  <p>The adapter still needs byte serialization, game/query transport, weighted verification and signing-failure certificates. In particular, a theorem capped at 2<sup>24</sup> requests does not establish R4 at 2<sup>32</sup>; the same-scheme extended-lifetime proof is additional work. Seed derivation, storage and wallet bounds also remain. Upstream work stays coordinated with Emile rather than silently changing the audited revision.</p>
 </section>
 
-<section id="designspace">
-  <h2><span class="secno">9</span>Design space: known tricks, open frontier</h2>
-  <p>A non-exhaustive map for entrants, human or agent, of where the known wins and open conjectures sit:</p>
+<section id="tricks">
+  <h2><span class="secno">9</span>Research directions</h2>
+  <p>Useful directions include incomparable encodings, bounded grinding, coded disclosures, few-time components, authentication multiproofs, tree layouts, tighter reductions and lower bounds in explicit models. Every claimed security improvement retains its constants; every practical improvement retains the full execution and storage costs.</p>
+  <p>Emile's polynomial-coding exploration motivates keeping the model open to unusual constructions. The <a href="https://github.com/nconsigny/leansphincs/blob/main/POLYNOMIAL_CODING_REVIEW.md">technical annex review</a> records the supplied construction, re-metering assumptions and unproved obligations. A shape that wins in one abstract cost model is not thereby globally optimal or deployable.</p>
+</section>
+
+<section id="questions">
+  <h2><span class="secno">10</span>Remaining decisions before launch</h2>
   <ul>
-    <li><strong>Encodings.</strong> Target-sum Winternitz kills the checksum chains; incomparable encodings generalize; the hypercube / top-layer encodings of 2025/1332 buy signature size at the same security. The encoding is the highest-leverage free variable.</li>
-    <li><strong>Chain-count margin.</strong> There is a known (unpublished) attack putting standardized SPHINCS+ level 1 strictly below 128 bits provable. Conjecture on the table: +2 WOTS chains at chain length 8 recovers provable 128, a cheap fix if it holds. The rejected alternative, 129-bit digests, would poison SNARK aggregation; don't.</li>
-    <li><strong>Tighter proofs over bigger parameters.</strong> SPHINCS+-style bounds give ≈124.5 bits from 128-bit digests. If the R2/R3 pair is winnable with a tighter proof at <em>smaller</em> parameters, that beats padding the scheme. The 127-bit conjecture is no longer just a conjecture: leanVM-b's <span class="mono">xmss-fv</span> branch carries a machine-checked 127-bit classical theorem for a concrete synchronized target-sum XMSS. The open question is transporting that tightness to the stateless setting.</li>
-    <li><strong>Grinding.</strong> WOTS+C-style grinding at signing time trades signer cycles (budgeted by R9) for signature bytes (scored). The R9 budget is deliberately the knob that bounds this trick. Bounded attempt counts are also why signing may fail explicitly; R8's 2<sup>−128</sup> availability gate is what bounds that failure.</li>
-    <li><strong>Delegation-friendly signing.</strong> The <code>presign</code> split (§5.3) rewards schemes whose heavy bookkeeping is provably non-secret: the more of the signer that runs on the host under the adversary-visible-transcript rule, the less pressure on the 64 KiB / 1.5 s wallet budget. Designing so the delegated transcript is trivially simulatable is a new axis this cost model opens.</li>
-    <li><strong>Keygen-time caching.</strong> The 4 KiB non-secret cache (R9) generalizes to a pebbling knob: storing the 2<sup>d</sup> nodes at depth d of a height-h top tree makes signing cost 2<sup>h−d</sup> leaf derivations, so cache size trades directly against signing time. Because the cache is adversary-replaceable in the security game, the trick is only available where tampering is provably harmless, which top-layer digests are.</li>
-    <li><strong>Polynomial-coded disclosures.</strong> Reed–Solomon-style evaluation of hash-derived coefficients can enlarge the disclosure design space. Such values are correlated, and enough evaluations permit interpolation. Prove the actual leakage/composition properties; charge polynomial evaluation, field operations and decoding in the cycle profile. A hash-only improvement is not an execution-speed result. See the <a href="https://github.com/nconsigny/leansphincs/blob/main/POLYNOMIAL_CODING_REVIEW.md">bounded review of the supplied annex</a>; it is not an accepted construction or security certificate.</li>
-    <li><strong>zkVM-shaped verification.</strong> Keep digests within word-multiple sizes; batch hash calls into precompile-friendly blocks; structure Merkle paths for sequential memory access. The instruction mix is visible in the cycle-based view and mandatory execution gates even when the research score uses hash work.</li>
-    <li><strong>Multi-target tightness.</strong> The multi-target/multi-instance losses are where classical proofs bleed constants; this is where R3's forgiveness is spent, and where a clever proof reclaims it.</li>
+    <li><span class="tbd">Bandwidth price c and execution calibration</span>: choose units and a reproducible calibration protocol before assigning scalar ranks.</li>
+    <li><span class="tbd">Academic track games and budgets</span>: coordinate OTS and broader construction targets with the researchers building them.</li>
+    <li><span class="tbd">Resource certificates</span>: bind full-program work, bounded retries, persistent key/precomputation storage and verification limits.</li>
+    <li><span class="tbd">Baseline and production validation</span>: complete the same-scheme decay adapter, accepted baseline and mutation suite.</li>
+    <li><span class="tbd">Governance, audit, prizes and timeline</span>: freeze protected-module rights, verifier registration and award/adoption review before opening.</li>
   </ul>
-</section>
-
-<section id="openquestions">
-  <h2><span class="secno">10</span>Open questions</h2>
-
-  <div class="oq"><span class="oq-id">OQ-1 · Proof-stack details</span>
-    <p>VCVio remains the proof framework. The protected legacy statement now implements the shared-ROM SUF-CMA game, canonical-bound endpoint theorem, correctness, signing-failure and weighted-verification obligations. HashSig's concrete-function components still need the appropriate oracle-based connection for reuse. The locally reproduced <a href="https://github.com/nconsigny/leansphincs/blob/main/PR19_REVIEW.md">PR #19 stateless SPHINCS reference</a> proves a 126-bit statement at its pinned revision with only standard axioms; synchronized XMSS provides a separate 127-bit reference. Neither is automatically an eligible entry. Serialization, game transport, K/S/V certificates, availability, the Stage 1 composition contract and full-program metering remain integration work. R3 additionally needs a fixed normalization convention before its idealized bound can become a protected gate.</p>
-  </div>
-
-  <div class="oq"><span class="oq-id">OQ-2 · Cost-vector values</span>
-    <p>The objective is |σ| × V with fixed signing and keygen budgets in both stages (v0.16). Remaining choices are the Stage 1 budget fractions, concrete instruction/memory/hash weights, execution and host-presign caps and the final award profile. Keep the hash and cycle views separate, and re-optimize parameters under each. No single 64-byte-input/64-byte-output toy oracle fixes the practical winner. Changes are versioned and apply only to future submissions.</p>
-  </div>
-
-  <div class="oq"><span class="oq-id">OQ-3 · Wallet model details</span>
-    <p>The R9 budgets are set (1 minute keygen, 1.5 s signing, 64 KiB RAM). Two details remain: whether a hardware SHA accelerator may be assumed (it roughly halves effective cycles per byte and exists in this MCU class), and whether the time budgets should additionally be validated on a secure-element profile, since the Nano S+ runs its Cortex-M35P at 70 MHz and wall-clock there is roughly 2.3× the 160 MHz model.</p>
-  </div>
-
-  <div class="oq"><span class="oq-id">OQ-4 · Provable bits in the score</span>
-    <p>Suggestion from the Berlin thread: make provable security a scored dimension rather than a gate, e.g. dividing the score by a function of λ(B) − 124, so tighter proofs are rewarded, not merely admitted. This couples the score to proof style; it remains parked and is not part of the objective.</p>
-  </div>
-
-  <div class="oq"><span class="oq-id">OQ-5 · Scope boundaries</span>
-    <p>The cryptographic fence concerns assumptions, not whether a program performs algebra. Public finite-field coding may be admissible with a ROM-only proof; correlated polynomial evaluations must not be treated as independent hash outputs. The oracle type alone does not enforce the complete scheme-class policy. The pure-ROM scope excludes constructions requiring additional hardness assumptions. A second proof under weaker standard assumptions and a synchronized track remain separate open options.</p>
-  </div>
-
-  <div class="oq"><span class="oq-id">OQ-6 · Signature size soft cap</span>
-    <p>Should |σ| carry a hard cap near single-packet size? The safe UDP payload figure is 1232 bytes (IPv6 min MTU 1280 − headers; discv5 caps packets at 1280 B), but note consensus gossip does not actually impose it. The score already pressures size; a hard cap may be redundant. Leaning: no cap, keep the objective clean.</p>
-  </div>
-
-  <div class="oq"><span class="oq-id">OQ-7 · Expert review</span>
-    <p>R2/R3 thresholds (124/128) and the registry seed need sign-off from the leanSig authors, pending Benedikt's return from vacation. Emile's attack (SPHINCS+ level 1 below 128 provable) should be written up and cited as the motivating example for why R2 ≠ 128. The xmss-fv result, 127 machine-checked bits for synchronized XMSS, adds a fresh question for that review: whether the R2 floor should move from 124 toward 127.</p>
-  </div>
-
-  <div class="oq"><span class="oq-id">OQ-8 · Hash work versus execution cost (reopened)</span>
-    <p>The objective is shared; the definitive deployment/prize profile is not frozen. Polynomial coding and expensive codebook arithmetic show why a small hash-count saving can hide an execution regression. Retain a hash-work research view, add the cycle-based view, and require hard execution/memory gates. Concrete weights, caps, full-program cost proofs and a baseline comparison are required before claiming a practical winner.</p>
-  </div>
+  <p>This draft incorporates Benedikt's review of the security accounting, pure-ROM requirement, cost objective and presentation. Incorporating that review is not a final endorsement of the implementation or approval for deployment.</p>
 </section>
 
 <section id="refs">
   <h2><span class="secno">A</span>References</h2>
   <ol class="refs">
-    <li>Khovratovich, Kudinov, Wagner. <em>At the Top of the Hypercube — Better Size-Time Tradeoffs for Hash-Based Signatures</em>. <span class="mono"><a href="https://eprint.iacr.org/2025/889">eprint 2025/889</a></span>. Encoding results in its stated model, not a security proof for the separate polynomial-coding annex.</li>
-    <li>Drake, Khovratovich, Kudinov, Wagner. <em>Hash-Based Multi-Signatures for Post-Quantum Ethereum</em>. <span class="mono"><a href="https://eprint.iacr.org/2025/055">eprint 2025/055</a></span>, published CiC Vol. 2 №1.</li>
-    <li>Drake, Khovratovich, Kudinov, Wagner. <em>Technical Note: LeanSig for Post-Quantum Ethereum</em>. <span class="mono"><a href="https://eprint.iacr.org/2025/1332">eprint 2025/1332</a></span>.</li>
-    <li><em>SPHINCS minus: Efficient Stateless Post-Quantum Signature Verification on the EVM</em>, June 2026. <span class="mono"><a href="https://ethresear.ch/t/sphincs-minus-efficient-stateless-post-quantum-signature-verification-on-the-evm/25165">ethresear.ch/25165</a></span>.</li>
-    <li><em>SPHINCS+ specification r3.1</em>, §7.1.1 ("Here, we are neglecting the small constant factors inside the logarithm.") <span class="mono"><a href="https://sphincs.org/data/sphincs+-r3.1-specification.pdf">sphincs.org</a></span>.</li>
-    <li>SPHINCS+ parameter tradeoff exploration (W+C, FORS+C, PORS+FP, octopus authentication sets, stateful comparisons). <span class="mono"><a href="https://github.com/BlockstreamResearch/SPHINCS-Parameters">BlockstreamResearch/SPHINCS-Parameters</a></span>.</li>
-    <li>Reference implementation lineage: <span class="mono"><a href="https://github.com/b-wagn/hash-sig">b-wagn/hash-sig</a></span> → leanEthereum/leanSig; parameter scripts in <span class="mono">b-wagn/hashsig-parameters</span>.</li>
-    <li>VCVio, a Lean 4 framework for oracle/game-based cryptographic proofs, including the HashSig library (SLH-DSA and C13 formalizations with concrete Keccak/SHA-2 instances). <span class="mono"><a href="https://github.com/Verified-zkEVM/VCVio">Verified-zkEVM/VCVio</a></span>, eprint 2026/899.</li>
-    <li>Formally verified RISC-V interpreter in Lean, extracted from the Sail specification. <span class="mono"><a href="https://github.com/Verified-zkEVM/riscv-zkvm">Verified-zkEVM/riscv-zkvm</a></span>.</li>
-    <li>XMSS security formalization with the machine-checked theorem <span class="mono">xmss_has_127_bits_of_classical_security</span>. <span class="mono"><a href="https://github.com/leanEthereum/leanVM-b/tree/xmss-fv">leanEthereum/leanVM-b, branch xmss-fv</a></span>.</li>
-    <li>ArkLib, verified arguments of knowledge in Lean 4. <span class="mono"><a href="https://github.com/Verified-zkEVM/ArkLib">Verified-zkEVM/ArkLib</a></span>.</li>
-    <li>RISC Zero zkVM optimization guide (SHA-256 accelerator: 68 cycles / 64-byte block). <span class="mono"><a href="https://dev.risczero.com/api/zkvm/optimization">dev.risczero.com</a></span>.</li>    <li>wolfSSL crypto benchmarks on STM32 (SHA-256 ≈ 44 cycles/byte, Cortex-M33 class). <span class="mono">wolfssl.com</span>.</li>
-    <li>ST33K1M5C secure MCU data brief (Cortex-M35P @ 70 MHz, 64-Kbyte user RAM; the Ledger Nano S+ secure element). <span class="mono"><a href="https://www.st.com/resource/en/data_brief/st33k1m5c.pdf">st.com</a></span>.</li>
-    <li>discv5 wire protocol (1280-byte packet cap). <span class="mono"><a href="https://github.com/ethereum/devp2p/blob/master/discv5/discv5-wire.md">devp2p/discv5</a></span>.</li>
-    <li>Announcement of the pivot from Poseidon to SHA/BLAKE, J. Drake, Aug 2026. <span class="mono"><a href="https://x.com/drakefjustin/status/2087905684180418733">x.com/drakefjustin</a></span>.</li>
-    <li><em>Raising machine-checked security benchmarks to advance hash-based SNARKs through agentic collaboration</em> (better.codes launch), EF Blog, Aug 2026. <span class="mono"><a href="https://blog.ethereum.org/en/2026/08/20/better-codes-challenge">blog.ethereum.org</a></span>.</li>
-    <li>The better.codes / Proximity Prize challenge harness: protected targets, comparator with permitted axioms, verdict gate, agent instructions. <span class="mono"><a href="https://github.com/proximity-prize/proximity-prize">proximity-prize/proximity-prize</a></span>.</li>
-    <li><em>zk.golf: Fearless and Collaborative Optimization of Circuits</em>. <span class="mono"><a href="https://blog.zksecurity.xyz/posts/zkgolf/">blog post</a></span>; site: <span class="mono"><a href="https://zk.golf">zk.golf</a></span>.</li>
-    <li>Sibling autoresearch challenges: <span class="mono"><a href="https://ecdsa.fail">ecdsa.fail</a></span>, <span class="mono"><a href="https://snark.fast">snark.fast</a></span>.</li>
+    <li>Khovratovich, Kudinov, Wagner. <em>At the Top of the Hypercube: Better Size-Time Tradeoffs for Hash-Based Signatures</em>. <a href="https://eprint.iacr.org/2025/889">ePrint 2025/889</a>.</li>
+    <li>Drake, Khovratovich, Kudinov, Wagner. <em>Hash-Based Multi-Signatures for Post-Quantum Ethereum</em>. <a href="https://eprint.iacr.org/2025/055">ePrint 2025/055</a>; <em>Technical Note: LeanSig for Post-Quantum Ethereum</em>, <a href="https://eprint.iacr.org/2025/1332">ePrint 2025/1332</a>.</li>
+    <li><em>SPHINCS+ specification r3.1</em>. <a href="https://sphincs.org/data/sphincs+-r3.1-specification.pdf">Specification</a>. Exact constants remain required by these competition rules.</li>
+    <li><a href="https://github.com/BlockstreamResearch/SPHINCS-Parameters">SPHINCS parameter exploration</a>.</li>
+    <li><a href="https://github.com/Verified-zkEVM/VCVio">VCVio</a>, the oracle/game proof framework used by this implementation.</li>
+    <li><a href="https://github.com/leanEthereum/leanVM-b/tree/xmss-fv">XMSS formalization</a> and <a href="https://github.com/leanEthereum/leanVM-b/tree/sphincs-fv">SPHINCS formalization</a>. Reproduction claims refer to the commits recorded in the repository, not automatically to the latest branch head.</li>
+    <li><a href="https://github.com/Verified-zkEVM/riscv-zkvm">RISC-V formalization</a>, a reference for the planned execution-metering path.</li>
+    <li><a href="https://github.com/proximity-prize/proximity-prize">better.codes challenge harness</a> and <a href="https://blog.zksecurity.xyz/posts/zkgolf/">zk.golf's specification discussion</a>.</li>
   </ol>
 </section>
 
 <footer>
-  leanSPHINCS draft rules v0.16 · not yet reviewed by the leanSig authors · submissions not open · comments to the lean-crypto channel
+  leanSPHINCS draft rules v0.17 · submissions not open · implementation and deployment review pending
 </footer>
 
 </div>
-
 </body>
 </html>

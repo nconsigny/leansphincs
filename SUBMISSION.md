@@ -1,11 +1,11 @@
 # MVP submission contract
 
-Status: implementer guide for the staged harness, not an announcement that
-submissions or prizes are open. The canonical GitHub website source is v0.16.
-This document describes the unchanged legacy MVP contract. The v0.16 objective
-`size * verification` coincides with the legacy score, but the signing and keygen
-budget certificates and a versioned comparator are still needed; do not add
-metric files that this contract does not admit.
+Status: implementer guide for draft v0.17, not an open competition.
+The revised claim identifier is `suf-cma-total-work-pk32-decay-v1`.
+The three-file format remains, but security semantics and lifetime coverage have
+changed. The additive price is organizer-owned and not yet calibrated; receipts
+remain unranked and have no scalar score while it is unset. Signing/keygen and
+full-program certificates remain launch work.
 
 ## Package
 
@@ -48,16 +48,20 @@ are rejected. All theorem/algorithm axiom closures must stay within `propext`,
   for every fixed 32-byte message under fresh key generation and a shared ROM.
   Signing returns `Option Bytes`; a stronger 2⁻²⁵⁶ certificate also qualifies.
 - Exact positive signature size for every successful output, public-key size
-  ≤ 64 bytes, and a positive verification bound covering malformed inputs too.
-- A canonical SUF-CMA bound for every admissible adversary, with at most 2²⁰
-  signing requests, and the protected 124-bit endpoint predicate.
+  ≤ 32 bytes, and a positive verification bound covering malformed inputs too.
+- A pure-ROM SUF-CMA bound `Adv <= B(qH + qS, qS)` for every admissible
+  adversary at up to 2^32 signing requests.
+- Both endpoint predicates on the same scheme and bound: 124 bits at 2^20
+  requests and 100 bits at 2^32. No reparameterization or constants dropping.
 
 Failed signing responses are visible and count against the signing-query budget.
-Only an exact successful message/signature pair is a replay. Security counts raw
-hash queries across the whole experiment; verification scoring instead charges
+Only an exact successful message/signature pair is a replay. qH counts raw
+hash queries across the whole experiment, including keygen, honest signing,
+adversarial hashing and final verification. The polynomial uses total work
+Q = qH + qS, where qS counts all signing requests; verification scoring instead charges
 `ceil(inputBytes / 64)` per call, including domain-separation bytes. The output
 remains 32 bytes; empty input costs 0 hash-work units but still consumes one raw
-security query. This v0.15 convention is pinned. Receipts identify it as
+security query. This convention is pinned. Receipts identify it as
 `rom256-input64-ceil-v1`; historical 32-byte-unit receipts are not comparable.
 Rebuild cost certificates and regenerate receipts against the current statement.
 
@@ -72,14 +76,22 @@ Rebuild cost certificates and regenerate receipts against the current statement.
 ```
 
 Each term `[numerator, denominator, a, b, k]` denotes
-`(numerator / denominator) * qH^a * qS^b / 2^k`. Fractions must be positive and
+`(numerator / denominator) * Q^a * qS^b / 2^k`. Fractions must be positive and
 reduced; exponents are natural numbers ≤ 1024; terms are unique and sorted by
 `(a,b,k)`. In Lean, the example is `[⟨4, 0, 1, 0, 128⟩]` because the denominator
-uses predecessor encoding. It represents the 126-bit slope, but declaring it is
-not a proof that your scheme satisfies it.
+uses predecessor encoding. It represents a 126-bit total-work slope, but
+declaring it is not a proof that your scheme satisfies it at either lifetime.
+The list length, coefficients and exponents must be fixed independently of Q/qS.
 
-The MVP score is the exact integer `sigma * hverify`, minimized, with signature
-size as the tie-break. No fourth scored file is needed for signing availability.
+The fixed-cap certificate checks the whole interval starting at Q = 1, including
+infeasible Q < signingCap points. It is conservative, and evaluation is monotone
+in qS. The security theorem must cover the extended request range itself.
+
+The objective is the exact rational `c * sigma + hverify`, minimized, with
+signature size as the tie-break. c comes only from the protected organizer profile
+`benchmark/scoring.json`. It is currently null; no scalar score is emitted.
+Do not submit a price file or claim a calibrated ranking. No additional scored
+file is needed for signing availability.
 
 ## Local verification
 

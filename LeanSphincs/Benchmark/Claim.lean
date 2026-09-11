@@ -1,8 +1,9 @@
 import LeanSphincs.Benchmark.Game
 import LeanSphincs.Benchmark.Bound
 
-/-! Protected MVP claim. Full-track idealized/decay, wallet, presign/cache and
-cycle-cap clauses are intentionally not represented as completed MVP gates. -/
+/-! Protected pure-ROM claim with total query work and same-scheme lifetime decay.
+Wallet/cycle budget clauses are not represented as completed gates. No conjectural
+assumption, constants-dropping predicate or auxiliary cache interface is required. -/
 
 namespace LeanSphincs.Benchmark
 
@@ -10,39 +11,64 @@ open ENNReal
 
 def signingBudget : Nat := 2 ^ 20
 def securityFloor : Nat := 124
+def extendedSigningBudget : Nat := 2 ^ 32
+def extendedSecurityFloor : Nat := 100
 def signingFailureBits : Nat := 128
 
-noncomputable def boundProbability (coeffs : BoundCoeffs) (qH qS : Nat) : ℝ≥0∞ :=
-  ENNReal.ofReal (evalBound coeffs qH qS : ℝ)
+noncomputable def boundProbability (coeffs : BoundCoeffs) (qW qS : Nat) : ℝ≥0∞ :=
+  ENNReal.ofReal (evalBound coeffs qW qS : ℝ)
 
 structure SchemeClaim (S : SigScheme) (sigmaBytes hVerify : Nat) (coeffs : BoundCoeffs) : Prop where
   correct : CorrectOnSuccess S
   signing_failure : HasSigningFailureBound S signingFailureBits
   sigma_positive : 0 < sigmaBytes
   sigma_size : HasSignatureSize S sigmaBytes
-  public_key_size : HasPublicKeySize S 64
+  public_key_size : HasPublicKeySize S 32
   hverify_positive : 0 < hVerify
   verify_queries : HasVerificationBound S hVerify
-  security : ∀ (A : Adversary) (qH : Nat),
-    HasHashQueryBound S A qH → HasSigningQueryBound A signingBudget →
-      sufAdvantage S A ≤ boundProbability coeffs qH signingBudget
+  security : ∀ (A : Adversary) (qH qS : Nat), qS ≤ extendedSigningBudget →
+    HasHashQueryBound S A qH → HasSigningQueryBound A qS →
+      sufAdvantage S A ≤ boundProbability coeffs (qH + qS) qS
   floor : MeetsFloor coeffs signingBudget securityFloor
+  decay_floor : MeetsFloor coeffs extendedSigningBudget extendedSecurityFloor
 
-/-- The certified canonical bound entails the advertised 124-bit inequality
-throughout the nonzero budget range, with no off-chain numerical assumption. -/
-theorem SchemeClaim.security_le {S : SigScheme} {sigma hverify : Nat} {coeffs : BoundCoeffs}
-    (claim : SchemeClaim S sigma hverify coeffs) (A : Adversary) (qH : Nat)
-    (hlo : 1 ≤ qH) (hhi : qH ≤ 2 ^ securityFloor)
-    (hH : HasHashQueryBound S A qH) (hS : HasSigningQueryBound A signingBudget) :
-    sufAdvantage S A ≤ (qH : ℝ≥0∞) / 2 ^ securityFloor := by
-  have hq : evalBound coeffs qH signingBudget ≤ (qH : ℚ) / 2 ^ securityFloor :=
-    claim.floor.sound (by exact_mod_cast hlo) (by exact_mod_cast hhi)
-  have hr : (evalBound coeffs qH signingBudget : ℝ) ≤ (qH : ℝ) / 2 ^ securityFloor := by
+private theorem SchemeClaim.at_floor {S : SigScheme} {sigma hverify : Nat} {coeffs : BoundCoeffs}
+    (claim : SchemeClaim S sigma hverify coeffs) (cap bits : Nat)
+    (hcap : cap ≤ extendedSigningBudget) (hf : MeetsFloor coeffs cap bits)
+    (A : Adversary) (qH qS : Nat) (hSmax : qS ≤ cap)
+    (hlo : 1 ≤ qH + qS) (hhi : qH + qS ≤ 2 ^ bits)
+    (hH : HasHashQueryBound S A qH) (hS : HasSigningQueryBound A qS) :
+    sufAdvantage S A ≤ ((qH + qS : Nat) : ℝ≥0∞) / 2 ^ bits := by
+  have hq : evalBound coeffs ((qH + qS : Nat) : ℚ) qS ≤ ((qH + qS : Nat) : ℚ) / 2 ^ bits :=
+    (evalBound_mono_signing coeffs (qW := ((qH + qS : Nat) : ℚ)) (by positivity) hSmax).trans
+      (hf.sound (qW := ((qH + qS : Nat) : ℚ)) (by exact_mod_cast hlo) (by exact_mod_cast hhi))
+  have hr : (evalBound coeffs ((qH + qS : Nat) : ℚ) qS : ℝ) ≤ ((qH + qS : Nat) : ℝ) / 2 ^ bits := by
     have hc := (Rat.cast_le (K := ℝ)).mpr hq
     simpa only [Rat.cast_div, Rat.cast_natCast, Rat.cast_pow, Rat.cast_ofNat] using hc
-  apply (claim.security A qH hH hS).trans
+  apply (claim.security A qH qS (hSmax.trans hcap) hH hS).trans
   have := ENNReal.ofReal_le_ofReal hr
-  simpa [boundProbability, ENNReal.ofReal_div_of_pos (by positivity : (0 : ℝ) < 2 ^ securityFloor),
-    ENNReal.ofReal_pow (by norm_num : (0 : ℝ) ≤ 2)] using this
+  simpa only [boundProbability,
+    ENNReal.ofReal_div_of_pos (by positivity : (0 : ℝ) < 2 ^ bits),
+    ENNReal.ofReal_pow (by norm_num : (0 : ℝ) ≤ 2), ENNReal.ofReal_natCast,
+    ENNReal.ofReal_ofNat] using this
+
+/-- The normal-lifetime floor is measured against total work qH + qS. -/
+theorem SchemeClaim.security_le {S : SigScheme} {sigma hverify : Nat} {coeffs : BoundCoeffs}
+    (claim : SchemeClaim S sigma hverify coeffs) (A : Adversary) (qH qS : Nat)
+    (hSmax : qS ≤ signingBudget) (hlo : 1 ≤ qH + qS)
+    (hhi : qH + qS ≤ 2 ^ securityFloor)
+    (hH : HasHashQueryBound S A qH) (hS : HasSigningQueryBound A qS) :
+    sufAdvantage S A ≤ ((qH + qS : Nat) : ℝ≥0∞) / 2 ^ securityFloor :=
+  claim.at_floor signingBudget securityFloor (by decide) claim.floor A qH qS hSmax hlo hhi hH hS
+
+/-- The same S and coefficients, not a reparameterized scheme, at 2^32 requests. -/
+theorem SchemeClaim.decay_le {S : SigScheme} {sigma hverify : Nat} {coeffs : BoundCoeffs}
+    (claim : SchemeClaim S sigma hverify coeffs) (A : Adversary) (qH qS : Nat)
+    (hSmax : qS ≤ extendedSigningBudget) (hlo : 1 ≤ qH + qS)
+    (hhi : qH + qS ≤ 2 ^ extendedSecurityFloor)
+    (hH : HasHashQueryBound S A qH) (hS : HasSigningQueryBound A qS) :
+    sufAdvantage S A ≤ ((qH + qS : Nat) : ℝ≥0∞) / 2 ^ extendedSecurityFloor :=
+  claim.at_floor extendedSigningBudget extendedSecurityFloor le_rfl claim.decay_floor
+    A qH qS hSmax hlo hhi hH hS
 
 end LeanSphincs.Benchmark

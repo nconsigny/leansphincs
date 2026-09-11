@@ -14,11 +14,19 @@ their statements, compares against the rendered claim and checks axiom closure.
 Each run retains `source/`, `project/`, logs and `result.json` in a distinct
 mode-0700 directory under `benchmark-results/runs/`. The receipt binds filenames,
 source bytes, all three metrics, harness sources, dependency Git pins, tool-binary
-hashes and log hashes. A score is emitted only after successful comparison and a
-post-run source/harness, dependency-pin/cleanliness and tool-binary integrity
-checks. Lake is included alongside Lean, leanchecker, exporter, comparator and
+hashes and log hashes. A score is emitted only when the organizer profile has
+a calibrated price, after successful comparison and post-run source/harness,
+dependency-pin/cleanliness and tool-binary integrity checks. Lake is included alongside Lean, leanchecker, exporter, comparator and
 (in the strict profile) Landrun in the recorded/rechecked tool hashes.
 Every receipt says `ranked: false`.
+
+Draft v0.17 uses claim identifier `suf-cma-total-work-pk32-decay-v1`.
+Organizer-owned `benchmark/scoring.json` belongs to the protected harness
+manifest. Its current null price issues no scalar score, including on a local
+accepted result; a configured exact rational price would give c*sigma+hverify.
+No entrant-supplied price is admitted. Price calibration and complete-program
+resource gates are still launch work. Recheck old receipts under the revised
+total-work, 32-byte-key, same-scheme decay claim rather than relabeling them.
 
 Receipts are written to a private temporary file, flushed and atomically renamed
 to `result.json`. A failed write does not publish a partial JSON receipt. A hard
@@ -156,9 +164,9 @@ this implementation. The workflow retains test logs and receipts for 14 days.
 Before opening submissions:
 
 1. Land baseline #0 with the actual security-game/serialization transport,
-   verification-cost proof and signing-failure certificate. Mutate that accepted
+   verification-cost proof, signing-failure certificate and same-scheme 2^32-request decay proof. Mutate that accepted
    baseline to complete the full production-profile negative matrix.
-2. Review and freeze the block convention, protected modules and governance.
+2. Review and freeze the revised protected modules, calibrated pricing/resource profiles and governance. The 64-byte input-unit convention is already pinned.
 3. Build a reproducible, independently controlled verifier image. Source Git pins
    and recorded binary hashes alone do not authenticate precompiled dependency
    artifacts. Organizer caches/tool installation remain trusted inputs here.

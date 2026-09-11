@@ -80,7 +80,27 @@ python3 -m unittest discover -s tests -v
   correctness, leakage and instruction-cost proofs; direct pure-ROM scheme
   submissions must remain an alternative to templates.
 
-## Decisions applied on 2026-09-10
+## Current reviewed decisions (2026-09-11)
+
+Both stages use `c * signatureBytes + verificationWork` within matched games
+and profiles. The organizer-owned rational price c is pending calibration; no
+scalar ranking is issued until then. The Pareto frontier remains useful meanwhile.
+Stage 1 is broader than OTS and does not assume components are used fully black-box.
+
+Hard account budgets remain 1.5 s signing, 60 s keygen and 64 KiB working RAM.
+Full-program worst-case certificates must include arithmetic, retries and storage;
+the hash count alone cannot establish them. Expected work is optional reporting,
+not a replacement for a hard cap. Signing-failure probability is separate.
+
+The security claim is pure ROM, public keys <= 32 bytes, total query work
+Q = qH + qS (including challenger hashes), with exact constants and same-scheme
+124-bit / 100-bit floors at 2^20 / 2^32 requests. No constants-dropping rule or
+mandatory public cache/presign interface remains. The annex does not yet supply
+these certificates, and its arithmetic estimates are not a new baseline.
+
+## Historical decisions applied on 2026-09-10
+
+The following records the superseded scoring decisions, not the current objective.
 
 Update, spec v0.16 (later the same day): both stages now minimize
 `size * verification`, with signing and keygen work fixed as hard budgets (1.5 s
@@ -94,11 +114,11 @@ the full frontier; do not proclaim the hash-minimal shape a practical winner.
 
 Hard keygen/signing latency, verification execution and memory gates remain
 required for promotion. The wallet budgets are 1 minute keygen / 1.5-second signing as of v0.16. Their implementation
-and the cycle profile remain launch work. The final award profile and expected-
-versus-worst-case signing score remain open; worst-case failure probability is
-a separate proof obligation.
+and the cycle profile remain launch work. At that time the final profile and signing-work semantics were still open;
+the current objective no longer scores signing. Worst-case failure probability
+remains a separate proof obligation.
 
-The cryptographic interface and audited upstream pin are unchanged. The v0.15
+At that revision the cryptographic interface and audited upstream pin were unchanged. The v0.15
 protected hash-work meter was updated by organizer decision, independently of
 any candidate's security proof; the legacy claim still lacks K/S certificates.
 The next execution work is a

@@ -1,6 +1,130 @@
-# SchemeClaim: build plan for the leanSPHINCS statement layer
+# SchemeClaim: current plan and decision history
 
-Status: draft for team review, 2026-09-02; local implementation progress added 2026-09-06. Companion to the [competition spec](https://nconsigny.github.io/leansphincs/), sections 4, 7 and OQ-1/OQ-8.
+Status: draft v0.17 implementation, 2026-09-11. The
+[public rules](https://nconsigny.github.io/leansphincs/) and
+[implementation contract](IMPLEMENTATION.md) describe the current target.
+Historical notes below are snapshots, not competing current instructions.
+
+## Current decisions: Benedikt review accepted, 2026-09-11
+
+1. Both stages use `c * signatureBytes + verificationWork`, within separately
+   pinned games and meters. c is an organizer-owned positive rational, pending
+   calibration. No implicit price, no scalar ranking before calibration.
+   The former product and four-factor objectives are superseded.
+2. Complete-account limits remain 1.5 s signing, 60 s keygen and 64 KiB working
+   RAM. Full-program worst-case bounds include retries and arithmetic.
+   Hardware calibration, storage limits and component budgets remain open.
+   Historical hash-throughput conversions are not resource certificates.
+3. Pure-ROM, end-to-end Lean proofs only. No extra cryptographic assumptions,
+   constants-dropping gate, named construction ban or separate proof-style rule.
+   Internal modular reductions must discharge their own premises.
+4. Security is SUF-CMA with total query work Q = qH + qS. qH counts the entire
+   experiment including challenger hashes; qS counts failed/repeated requests.
+   Bound length, coefficients and exponents are fixed independently of budgets.
+5. One scheme, parameters and bound must satisfy 124 bits at 2^20 requests and
+   100 bits at 2^32. The security theorem itself covers qS <= 2^32.
+   The fixed-cap endpoint certificate is conservative even at Q < signingCap.
+6. Public keys are at most 32 bytes. Successful signature size remains an
+   equality. The single arbitrary-input/32-byte-output oracle and per-call
+   `ceil(inputBytes / 64)` work remain unchanged.
+7. Standard keygen/sign/verify structure; immutable preprocessing may live in sk.
+   No mandatory separate cache/presign channel. Any public disclosure/replacement
+   extension requires its own model; it is no longer on the core critical path.
+8. Correctness on success and fixed-message fresh-key failure <= 2^-128 remain
+   separate. Stronger 2^-256 certificates qualify. Adaptive lifetime availability
+   is not inferred from this clause.
+9. Academic Stage 1 is broader than OTS: few-time components, encodings,
+   authentication, composition and complete constructions are also in scope.
+   Standard hybrid multi-instance reductions may be used with their loss and
+   actual shared-RO/domain-separation conditions accounted for.
+10. Automatic numerical ranking and human-curated research/negative-result
+    credit are separate. No QROM formalization promise or generic classical/2
+    guarantee. Final award/adoption approval is still pending.
+11. GitHub remains canonical under the existing organizer decision; agent
+    publication instructions live in AGENTS.md, not the rules page.
+
+## Implemented protected statement
+
+```lean
+structure SchemeClaim (S : SigScheme)
+    (sigmaBytes hVerify : Nat) (coeffs : BoundCoeffs) : Prop where
+  correct         : CorrectOnSuccess S
+  signing_failure : HasSigningFailureBound S 128
+  sigma_positive  : 0 < sigmaBytes
+  sigma_size      : HasSignatureSize S sigmaBytes
+  public_key_size : HasPublicKeySize S 32
+  hverify_positive : 0 < hVerify
+  verify_queries  : HasVerificationBound S hVerify
+  security        : ∀ A qH qS, qS ≤ 2^32 →
+    HasHashQueryBound S A qH → HasSigningQueryBound A qS →
+    sufAdvantage S A ≤ boundProbability coeffs (qH + qS) qS
+  floor           : MeetsFloor coeffs (2^20) 124
+  decay_floor     : MeetsFloor coeffs (2^32) 100
+```
+
+Explanatory expansion of the constants; the normative file is
+`LeanSphincs/Benchmark/Claim.lean`. The comparator leaves only S as a definition
+hole and binds all three declarations. The claim identifier is
+`suf-cma-total-work-pk32-decay-v1`; meter `rom256-input64-ceil-v1` is unchanged.
+Old declarations/receipts need re-verification, not relabeling.
+
+The exact evaluator and its convex endpoint proof remain independent of VCVio.
+The new signing-budget monotonicity lemma and `SchemeClaim.security_le` /
+`.decay_le` prove both advertised total-work inequalities. Regression fixtures
+exercise the smaller key cap, separate decay certificate and constants ambiguity.
+
+## Workstreams and next priorities
+
+- **WS1: library coordination.** HashSig oracle-ization is independent of the
+  statement. Coordinate with Quang/Alex and Emile's SPHINCS/OTS work; do not
+  silently move the reproduced reference pin or duplicate his active work.
+- **WS2: oracle, interface and game.** Implemented. No new cache/epoch interface
+  is needed for the core syntax. Keep raw queries separate from weighted work.
+- **WS3: fixed bounds.** Implemented with exact endpoint and monotonicity proofs.
+  Keep all constants. Any future tighter feasible-budget gate requires a new
+  theorem and explicit versioning, not a silent change to this certificate.
+- **WS4: claim, comparator and pricing.** Revised claim and organizer-owned
+  additive profile implemented. An unset c issues no scalar score; all local
+  receipts stay unranked. Full execution and S/K budget binding remain to add.
+- **WS5: production negative tests.** Existing real-comparator canaries and
+  actual-claim rejection fixtures are diagnostic coverage. Complete the matrix
+  by mutating a genuinely accepted baseline, including both lifetime fields.
+- **WS6: baseline #0.** An eligible **SPHINCS⁻ variant**, not a weakened target.
+  The pinned 126-bit theorem at 2^24 requests is promising, but still needs
+  byte serialization, game/query transport, weighted verification, failure
+  probability and a same-parameter security extension to 2^32 requests.
+  Passing numerical floor examples does not finish that extension.
+- **Academic targets.** With Emile, pin the first component game and per-track
+  budgets without limiting Stage 1 to OTS or assuming a fully black-box use.
+  Existing graph, counting and failure-envelope code is experimental.
+- **Execution and launch.** Bind the executable to the Lean algorithms, account
+  for full arithmetic/memory/retries and establish worst-case resource bounds.
+  Calibrate c and the wallet profile, set storage/verifier caps, then finish
+  baseline validation, governance, external audit, verifier registration and
+  authenticated frontier promotion before opening submissions.
+
+The 124-bit floor is unchanged; any future higher-floor proposal needs a separate
+decision and baseline evidence. Repo governance, prizes and timeline remain open.
+No lower-security launch workaround is authorized by this plan.
+
+## Validation of the reviewed implementation (2026-09-11)
+
+84 host tests pass, including pricing provenance, rejection of entrant-owned
+pricing, the fixed 128-term limit and current website rules. The complete
+`lake build LeanSphincs LeanSphincsTest` succeeds (3313 jobs); protected and
+experimental OTS axiom audits admit only the three standard axioms.
+The strict Linux profile passes all 11 boundary probes, all five metric
+comparator canaries and all four actual-claim rejection cases (forged axiom,
+sorry, weakened statement and oracle escape). Rejected receipts bind the new
+claim identifier and null organizer price and contain no score. Desktop/mobile
+page previews were checked. These are local diagnostics, not a cryptographic
+baseline, external audit, remote-CI result or deployment certificate.
+
+## Historical working notes (superseded where inconsistent above)
+
+The following notes preserve prior decisions, estimates and validation dates.
+References to older objectives, auxiliary channels, constants-dropping rules,
+hash-to-time conversions or publication targets are historical only.
 
 ## Local implementation progress (2026-09-06)
 
@@ -124,98 +248,3 @@ Verified again on 2026-09-07 after the previous session was cut off: the protect
 The WS2 block convention is now pinned to `ceil(inputBytes / 64)`, charging all supplied bytes, including domain separation, with zero weight for empty input. This supersedes the staged 32-byte input unit and one-unit minimum. The canonical GitHub spec source is v0.15 (2026-09-10), retaining the signing-failure decision introduced in v0.13. Repo home and merge rights remain deferred.
 
 [leanVM-b PR #19](https://github.com/leanEthereum/leanVM-b/pull/19) supplies an additional, directly relevant stateless SUF-CMA proof route: a public 126-bit statement at 2²⁴ signing requests, with the same whole-experiment ROM accounting. See [PR19_REVIEW.md](PR19_REVIEW.md). It can shorten WS6 without waiting for WS1, but needs serialization, game/cap transport and block-weighted verification proofs. Its signer returns `Option Signature` after bounded grinding. Following discussion with Emile and organizer approval on 2026-09-06, the staged contract now admits explicit signing failure, with separate correctness-on-success and failure-probability ≤ 2⁻¹²⁸ obligations. This is a per-fixed-message, fresh-key/shared-ROM gate, not an adaptive lifetime guarantee. Baseline transport and production validation remain; the contract is not yet frozen for submissions.
-
-## What we are building
-
-`SchemeClaim` is the protected, scheme-parametric Lean statement at the heart of the competition. It must:
-
-1. pin the oracle and the security game, leaving exactly one free slot: the submission's scheme;
-2. certify every scored quantity inside Lean (signature size, verification compression-call count, the canonical-form security bound and its bit-security floor), so the main leaderboard is a pure proof artifact;
-3. be render-and-match compatible with the proximity-prize comparator pipeline (declared metric files rendered into a `Challenge.lean`, exported theorem matched exactly, axioms checked against the permitted list).
-
-## The key sequencing decision (Quang's flag)
-
-The current `HashSig.SLHDSA` development keeps the hash family opaque but *deterministic*: primitives are pure fields of a `Primitives` bundle, and `Security.lean` packages them into standard-model interfaces (SM-DT-TCR, SM-DT-PRE, PRF games). The competition statement needs the random-oracle model: primitives as `OracleComp` queries with query counting.
-
-The consequence for planning: **this gap blocks reusing HashSig components, not building SchemeClaim**. A submission defines its scheme directly against the pinned game and oracle spec; HashSig is the component library submitters (and our baseline) will want, not a dependency of the statement. So the HashSig oracle-ization runs as a parallel library track, off the critical path.
-
-The template for the statement itself already exists: `formal/xmss/XmssSecurity/Statement.lean` on leanVM-b's `xmss-fv` branch builds a strong-unforgeability experiment, random-oracle simulation, and whole-experiment query accounting from `VCVio.OracleComp.QueryTracking.{LoggingOracle, RandomOracle.Simulation, QueryBound}`. SchemeClaim is, to first order, that file made scheme-parametric.
-
-## Module layout
-
-New challenge repo, skeleton forked from `proximity-prize/proximity-prize`:
-
-```
-LeanSphincs/
-  Benchmark/                  -- protected: submissions may import, never modify
-    Oracle.lean               -- the MVP oracle: N B → 32 B ideal compression function as an OracleSpec
-    SchemeInterface.lean      -- SigScheme: types, keygen/sign/verify in OracleComp, serialization
-    Game.lean                 -- EUF-CMA / SUF experiment, adversary type, query accounting
-    Bound.lean                -- canonical-form bounds: coefficient lists, evalBound, bitSecurity (decidable)
-    Claim.lean                -- structure SchemeClaim, bundling 1-5 below
-    Target.lean               -- what render-benchmark-challenge instantiates
-  Submission/                 -- the free slot: flat root, size-limited, import-checked
-    Scheme.lean               -- the scheme definition
-    Solution.lean             -- candidate : SchemeClaim Submission.scheme sigma hverify coeffs
-    sigma.txt  hverify.txt  bound.txt   -- declared metrics, rendered into Challenge.lean
-  Baseline/                   -- organizer baseline #0 (a full worked Submission)
-```
-
-## The claim, in shape
-
-Illustrative summary; the normative version is now `LeanSphincs/Benchmark/Claim.lean`.
-
-```lean
-structure SchemeClaim (S : SigScheme)
-    (sigmaBytes hVerify : Nat) (coeffs : BoundCoeffs) : Prop where
-  correct        : CorrectOnSuccess S
-  signing_failure : HasSigningFailureBound S 128
-  sigma_positive : 0 < sigmaBytes
-  sigma_size     : HasSignatureSize S sigmaBytes
-  public_key_size : HasPublicKeySize S 64
-  hverify_positive : 0 < hVerify
-  verify_queries : HasVerificationBound S hVerify
-  security       : ∀ (A : Adversary) (qH : Nat),
-                     HasHashQueryBound S A qH → HasSigningQueryBound A (2 ^ 20) →
-                     sufAdvantage S A ≤ boundProbability coeffs qH (2 ^ 20)
-  floor          : MeetsFloor coeffs (2 ^ 20) 124   -- rational certificate via norm_num
-```
-
-Notes:
-
-- **The game and oracle come from the protected module.** The import checker admits only `Mathlib`, `VCVio`, `HashSig`, the protected `LeanSphincs.Benchmark.Target`, and flat local helpers. The comparator leaves only `S` as a definition hole; the statement and all metrics must match.
-- **Every scored quantity is certified in-Lean.** `sigma_size` via the byte-exact serialization spec; `verify_queries` via VCVio's query-bound machinery (`HashSig` already ships `GeneralSchemeQueryBound.lean`, and xmss-fv counts queries across a whole experiment); `floor` as a decidable predicate over declared coefficients. The rule auditor planned in spec OQ-1 as external tooling disappears into the claim structure.
-- **Oracle access by type.** A scheme's algorithms live in the protected `OracleComp` interface. This prevents unmodelled oracle/IO effects, but arbitrary pure computations remain expressible. The unconditional ROM proof, axiom check and rule review enforce the stronger restriction against extra cryptographic assumptions; the type alone is not a complete construction classifier.
-- **Statelessness by type.** The game re-runs `sign` from `(sk, msg)` on every signing query; there is no state slot to thread.
-- **Availability is separate from security.** Signing returns `Option Bytes`; successful output must verify with probability one, and for each fixed message fresh key generation and signing must return `none` with probability at most 2⁻¹²⁸. Failed responses remain visible and consume query budget; only successful message/signature pairs count as replay. Exact size applies to successful outputs. A 2⁻²⁵⁶ failure certificate is stronger and also accepted.
-- MVP simplifications applied (spec section 7): single oracle, q_S ≤ 2^20 only (no decay clause), plain floor at 124, score computed by the harness from the declared `sigma.txt` and `hverify.txt` that the theorem certifies.
-
-## Workstreams
-
-**Phase 1, parallel.**
-
-- **WS1 — HashSig oracle-ization (library track; Quang and Alex's work).** Generalize the `Primitives` bundle so hash fields are monadic (`Thash : PkSeed → AdrsKey → List Y → m Y`), with the existing deterministic layer as the `Id` instantiation and a ROM instantiation over `OracleComp`. Existing concrete instances and KATs must keep compiling. Deliverable: WOTS/XMSS/FORS/hypertree components usable inside a `SigScheme`. Coordinate with the NIST + EasyCrypt-aligned rework already in progress; this plan should not duplicate that branch.
-- **WS2 — Benchmark core (`Oracle`, `SchemeInterface`, `Game`).** Port the xmss-fv Statement.lean shapes from concrete-XMSS to scheme-parametric. Decided (2026-09-02): SUF-CMA, and an N B → 32 B oracle with variable-length input. Updated and pinned (2026-09-10): `ceil(inputBytes / 64)` per call for the score, including domain separation; no minimum for empty input.
-- **WS3 — `Bound.lean`.** Standalone and small: coefficient lists, `evalBound`, `bitSecurity` as a computable function with `decide`-friendly lemmas, `#guard` unit tests. No dependencies on WS1/WS2; a good first PR.
-
-**Phase 2, after WS2 + WS3.**
-
-- **WS4 — `Claim.lean` + `Target.lean` + harness adaptation.** Write the claim structure; adapt `comparator.json` (theorem name, permitted axioms `propext / Quot.sound / Classical.choice`), the render script (three declared files instead of two), and the import allowlist. Pin the toolchain; wire `#guard_msgs` axiom pinning after the xmss-fv pattern.
-- **WS5 — Negative tests.** A submission with a wrong `sigma.txt` must be refused; a smuggled axiom must be refused; a scheme reaching outside the oracle spec must fail to typecheck; an import outside the allowlist must be refused at fetch. These tests are the harness's own KATs and ship in CI.
-
-**Phase 3, validates everything end to end.**
-
-- **WS6 — Baseline #0.** A full worked submission by the organizers: a stateless SLH-DSA-style instance built from WS1 components (C13-flavored if ready, a plain small hypertree if not), its `SchemeClaim` proof, and its declared metrics. This is the schedule risk: the security proof is the heavy half. Two mitigations: start from the xmss-fv proof spine (its cache-replay and query-accounting lemmas transfer), and if needed launch with a reduced-parameter instance whose bound closes quickly, upgrading the baseline after launch. The leaderboard needs one honest entry, not a record.
-
-## Decisions (closed 2026-09-02 unless noted)
-
-1. **SUF-CMA** is the pinned notion (matches the xmss-fv precedent).
-2. **N B → 32 B oracle** with variable-length input; a fixed 96 B → 32 B would tailor the model to SHA-2. Updated on 2026-09-10: score weight per call = `ceil(inputBytes / 64)`, including supplied domain-separation bytes. Empty input costs zero hash-work units but still counts as a raw security query. This replaces the earlier staged 32-byte work unit and one-unit minimum.
-3. **`sigma_size` is an equality**; fixed-length serialization, pad if needed.
-4. **Floor stays at 124** for the MVP; 127 remains the full-track ambition (spec OQ-7).
-5. Repo home and protected-module merge rights: **deferred**, to be settled before anyone submits.
-6. **Bounded signing failure** (2026-09-06): explicit `none`, correctness on success, and a separate `Pr[none] ≤ 2⁻¹²⁸` theorem per fixed message under fresh key generation and a shared ROM. Stronger bounds such as 2⁻²⁵⁶ qualify. This does not change the 124-bit security floor or add a scored metric. Synchronized to both published spec targets as v0.13 on 2026-09-07 (R8, R2 and the grinding entry of section 9).
-
-## What this plan deliberately leaves out
-
-The RISC-V metering environment (views and the sanity cycle cap) is tracked separately; the current MVP harness does not certify a cycle cap. Wallet-vector gating, presign/cache game clauses and the trick-template library are full-track work requiring a versioned protected claim and review. They must not be advertised as enforced by the present MVP statement.

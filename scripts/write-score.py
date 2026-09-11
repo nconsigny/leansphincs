@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 from benchmark_contract import metrics
 from oracle_meter import meter_metadata
+from scoring_policy import CLAIM_ID, load_scoring_profile, score_entry
 
 if len(sys.argv) != 3:
     raise SystemExit("usage: write-score.py SUBMISSION_DIR RENDERED_SNAPSHOT")
@@ -17,9 +18,16 @@ snapshot = json.loads(Path(sys.argv[2]).read_text())
 sigma, hverify, bound = metrics(Path(sys.argv[1]))
 if snapshot != {"sigma": sigma, "hverify": hverify, "bound": bound}:
     raise SystemExit("declared metrics changed after rendering; no score issued")
-print(json.dumps({
+profile = load_scoring_profile(Path(__file__).resolve().parents[1] / "benchmark/scoring.json")
+report = {
     "profile": "declared-metrics-only", "ranked": False, "verified": False,
+    "claim_version": CLAIM_ID, "scoring_profile": profile,
     "hash_meter": meter_metadata(),
     "sigma": sigma, "hverify": hverify, "bound": bound,
-    "score": str(sigma * hverify), "direction": "minimize", "tie_break": sigma,
-}))
+}
+score = score_entry(profile, sigma, hverify)
+if score is None:
+    report["score_pending"] = "bandwidth coefficient not calibrated"
+else:
+    report["score"] = score
+print(json.dumps(report))

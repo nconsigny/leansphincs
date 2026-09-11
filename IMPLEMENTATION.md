@@ -1,96 +1,156 @@
-# WS2–WS4 implementation contract
+# Statement and harness implementation contract
 
-Status: local review candidate, 2026-09-06. The published spec was updated to v0.13 on 2026-09-07 to carry the signing-failure decision (R8). This document records concrete implementation choices for review, not a change to competition governance.
+Status: reviewed-rule implementation for draft v0.17, 2026-09-11.
+This is not a frozen competition, an accepted cryptographic baseline or a
+deployment certificate. Historical decisions and validation snapshots are retained
+in [SCHEMECLAIM_PLAN.md](SCHEMECLAIM_PLAN.md).
 
-2026-09-10: the v0.16 website source describes two stages sharing the objective
-`size * verification`, with signing and keygen work fixed as hard budgets (1.5 s
-signing, 1 minute keygen at the anchor), plus execution-cost views and hard gates. GitHub is now canonical by organizer decision; the earlier Claude artifact
-is a legacy copy, not a synchronized publication target. The implemented legacy claim and
-receipt still bind only `sigma * hverify`; new K/S budget-certificate fields and a
-versioned comparator migration are required before full eligibility.
+## Oracle and interface
 
-The v0.15 meter revision changes the protected `hashWeight` to `ceil(bytes / 64)`
-with no minimum for empty input; the raw security-query budget and output width
-are unchanged. Receipts label the new meter `rom256-input64-ceil-v1`. Rebuild
-proofs and regenerate receipts before comparing old results under this revision.
+`Oracle.lean` supplies arbitrary byte-list inputs and 256-bit outputs, with one
+lazy ROM shared by key generation, adversarial hashing, signing and final
+verification. Uniform sampling is separate. Verification work is the sum of
+`(input.length + 63) / 64` over every call, including repeated and empty calls:
+empty costs zero weighted units but still one raw security query. All supplied
+domain tags count. Meter identifier: `rom256-input64-ceil-v1`.
 
-Harness hardening (2026-09-07): verification now captures submission bytes once,
-uses private per-run projects and fresh candidate outputs, and produces
-content-bound unranked receipts. The default Linux path replaces the inherited
-broad grants with read-only protected/dependency trees, narrowly writable build
-outputs, mandatory resource/network restrictions and active boundary probes.
-See [HARNESS_SECURITY.md](HARNESS_SECURITY.md) for the precise profile and remaining
-production launch gates. The real `SchemeClaim` rejection suite supplements the
-metric-only comparator canaries; it does not replace the missing accepted baseline.
+`SchemeInterface.lean` fixes messages to 32-byte digests. A submission selects its
+secret-key type and algorithms:
+`keygen -> (pk, sk)`, `sign(sk, message) -> Option Bytes`,
+`verify(pk, message, signature) -> Bool`.
+Signing has no mutable state or epoch argument/output. Verification may hash but
+does not sample random coins. Public keys and signatures are actual wire bytes.
 
-Receipt follow-up (2026-09-08): before scoring, the runner now rechecks dependency
-pins/cleanliness and tool binaries as well as source/harness integrity. Lake is
-included in tool provenance. Complete receipts are atomically published; tests
-exercise drift, interruption and write failures without claiming a cryptographic
-baseline. No protected Lean interfaces or scoring rules changed.
+Immutable precomputation may be included in the secret-key value. There is no
+required auxiliary cache/presign interface or free 4 KiB cache allowance.
+Disclosure/replacement/delegation needs a separately reviewed game extension;
+secret/precomputation storage and complete-program resource bounds remain to bind.
 
-Termination follow-up (2026-09-09): CLI SIGTERM now enters the same worker cleanup
-and interrupted-receipt path as Ctrl-C. Repeated SIGTERM is ignored during
-unwinding; library callers' signal handlers are unchanged. Host tests cover a
-real process-group cleanup and the named systemd stop request/error path.
+`CorrectOnSuccess` requires probability one of either explicit failure or a
+verifying output in the fresh-key experiment. Independently,
+`HasSigningFailureBound S 128` bounds failure for every fixed message, averaged
+over key generation, signing randomness and their shared ROM. The proved
+`.mono` lemma transports a 256-bit certificate to the 128-bit gate.
+This is not a per-key conditional or adaptive lifetime-availability guarantee.
 
-Admission follow-up (2026-09-09): the public runner entry point holds a
-per-checkout, nonblocking kernel lock before capture through receipt publication.
-Contention produces an unranked, retryable `worker_busy` receipt without reading
-the candidate. The host suite now has 45 tests. This is cooperative admission,
-not a durable queue, aggregate disk quota or crash-surviving cgroup scheduler.
+Exact signature size covers every successful output on every path from a
+generated key; public keys are bounded by **32 bytes** on every keygen path.
+The verification bound includes malformed inputs.
 
-## WS2: oracle and game
+## Pure-ROM game and total work
 
-`Oracle.lean` pins byte-list inputs and 256-bit outputs, with one lazy random-oracle cache shared by key generation, adaptive adversarial hashing, signing and final verification. Fresh uniform sampling is a separate oracle. A hash input costs `(length + 63) / 64` verification units (natural-number division), including domain-separation bytes. Empty input costs 0; 1–64 bytes cost 1; 65–128 cost 2; 129 costs 3. Sum ceilings per call, not after aggregation. Repeated calls are charged even when the ROM returns a cached answer. Empty input still consumes a raw security query and execution work; zero hash-work weight is not a zero-cycle claim. `LeanSphincsTest/OracleMeter.lean` checks these distinctions.
+`Game.lean` logs all signing requests and optional responses. Only an exact
+successful message/signature replay is excluded; a different valid signature
+on an already-signed message wins. Repeated and failed signing requests are
+charged equally and are visible to the adversary.
 
-The security budget counts **raw calls across the whole experiment**; it excludes uniform sampling. This follows both reference statements. It is distinct from the score's block-weighted verification budget. This convention admits no adversary below the unavoidable honest-experiment cost; its security interpretation is the work/probability slope, as documented upstream.
+`HasHashQueryBound` bounds raw calls across the **whole experiment**, including
+challenger keygen, honest signing, final verification and adversarial hashing;
+uniform sampling is excluded. `HasSigningQueryBound` bounds requests on every
+adversarial path for every public key. These are not expected work bounds.
 
-`SchemeInterface.lean` fixes messages to 32-byte digests and exposes actual public-key and signature bytes. The submission selects its secret-key type and algorithms. There is no hidden typed signature field, serialization side channel, mutable signing state or epoch parameter. Verification may hash but may not sample random coins. The exact signature-size claim covers every successful output path from every generated key; the verification bound also covers malformed byte strings. Public keys are bounded by 64 bytes.
+The security bound's first argument is **Q = qH + qS**, not just adversarial
+hashing or weighted verification work. The actual game is unchanged; the claim's
+accounting and theorem coverage are revised. Bounds are conservative when the
+chosen budgets exceed actual query use.
 
-`Game.lean` records message/optional-signature pairs and excludes only exact successful replays. A new valid signature for an already-signed message wins. Repeated signing requests and requests returning `none` consume the same budget as successful requests for fresh messages. Failures are visible to the adversary and cannot exclude a forgery as replay. `HasSigningQueryBound` imposes at most 2²⁰ requests on every adversarial path for every public key. The shared-ROM hash accounting includes honest signing work.
+Arbitrary pure computations are expressible. Eligibility requires an
+unconditional, end-to-end ROM theorem with all internal reduction premises
+discharged. There is no conjectural assumption registry, separate proof-style
+exception or construction classifier by family name. Allowed axioms are exactly
+`propext`, `Classical.choice` and `Quot.sound`.
 
-Following the organizer decision on 2026-09-06, signing returns `Option Bytes`. Two independent claim fields cover correctness and availability: `CorrectOnSuccess` requires probability one of either failure or successful verification; `HasSigningFailureBound S 128` requires `Pr[sign returns none] ≤ 2^-128` for each fixed message, averaged over fresh key generation, signing randomness and their shared ROM. This admits bounded retries without accepting an always-failing signer. It is not a per-key conditional guarantee or adaptive lifetime-availability theorem. The generic bound accepts stronger certificates: `HasSigningFailureBound.mono` transports a 256-bit certificate to the 128-bit gate. The security floor remains 124; availability is a separate theorem, not a scored fourth metric. See `PR19_REVIEW.md` for the remaining baseline proof obligation.
+## Fixed exact bound and lifetime certificates
 
-Oracle access is restricted by the type. Arbitrary pure computations are still expressible; the type alone is not a syntactic classifier excluding every non-hash construction. The unconditional ROM theorem and its axiom closure, plus the eventual rule review, enforce the stronger cryptographic restriction.
+A `BoundTerm` represents
+`(numerator / (denominatorPred + 1)) * Q^a * qS^b / 2^k`.
+The declared coefficient list is fixed independently of either query budget.
+The host format enforces 1–128 positive reduced terms with bounded exponents;
+the underlying mathematical evaluator also supports zero coefficients/empty
+lists for general lemmas and tests.
 
-## WS3: canonical bounds
+For a fixed signing cap S and bit level b, `MeetsFloor` checks
+`B(1,S) <= 2^-b` and `B(2^b,S) <= 1`.
+Convexity of `B(Q,S) - Q/2^b` gives the full interval inequality.
+`meetsFloor_iff` characterizes this **fixed-cap** interval exactly;
+`evalBound_mono_signing` transports it to any smaller signing budget.
 
-A `BoundTerm` represents `(numerator / (denominatorPred + 1)) * qH^a * qS^b / 2^k`. Coefficients are non-negative, exponents are natural numbers, and `k` records `n*d` in bits explicitly, so truncated digests are representable without enormous coefficients. Evaluation uses exact rational arithmetic. There is no VCVio, HashSig or game dependency in `Bound.lean`; it uses Mathlib for the convexity proof.
+This includes numerical points Q < S. It is therefore a conservative sufficient
+certificate for the feasible two-budget security region, not the tightest
+possible test restricted to Q >= qS. No enumeration of 2^124 values is needed.
+`bitSecurity` is reporting only; acceptance uses `MeetsFloor`.
+`idealize` remains a historical arithmetic helper and is never an eligibility
+predicate. Equivalent bounds must not acquire different eligibility by moving
+powers of two between coefficients and denominators.
 
-For fixed signing budget and `Q = 2^bits`, `MeetsFloor` checks `B(1) ≤ 1/Q` and `B(Q) ≤ 1`. `MeetsFloor.sound` proves that these checks imply `B(qH) ≤ qH/Q` throughout `[1,Q]`: `B(qH) - qH/Q` is convex. `meetsFloor_iff` proves the converse. This handles constant, linear and higher-degree terms without enumerating 2¹²⁴ budgets. Non-negative coefficients make evaluation at the maximum signing budget conservative for smaller budgets.
+`SchemeClaim` requires one security theorem for all qS <= 2^32:
+`Adv <= B(qH + qS, qS)`. It then checks both:
 
-`bitSecurity` reports a finite integer, no non-negative floor, or an unbounded result for a zero bound. For a positive `B(1)`, its reduced rational denominator gives a finite search limit. **Acceptance uses the proved `MeetsFloor` predicate directly**, not an off-chain reported bit count. Concrete certificates close with `norm_num [MeetsFloor, evalBound, BoundTerm.weight]`; plain `decide` can get stuck on rational arithmetic's irreducible implementation details.
+- `MeetsFloor coeffs (2^20) 124`;
+- `MeetsFloor coeffs (2^32) 100`.
 
-`idealize` is available for arithmetic experiments. The MVP does not gate on it. Before adopting the full-track idealized rule, fix the normalization of powers of two between coefficients and denominators: `q/2^126` and `4q/2^128` evaluate equally but idealize differently. A syntactic constant-dropping rule needs this additional convention.
+`SchemeClaim.security_le` and `.decay_le` derive the respective total-work
+probability inequalities. Both refer to the **same S, parameters and coefficients**.
+A theorem limited to 2^24 requests cannot supply the latter obligation just
+because its polynomial numerically passes. `LeanSphincsTest/ReviewRules.lean`
+checks the 32-byte boundary, separate decay gate and constants-dropping ambiguity.
 
-`LeanSphincsTest/BoundExamples.lean` checks the 126-bit slope and refined numerical budget from PR #19. These are arithmetic fixtures, not an imported or transported signature-security theorem.
+There is no QROM gate, generic classical/2 guarantee or organizer commitment to
+later formalize one.
 
-## WS4: claim and comparator
+## Comparator, declarations and pricing
 
-`SchemeClaim S sigma hverify coeffs` bundles correctness on success, the separate 128-bit signing-failure gate, positive scored metrics, exact successful-signature size, public-key size, the worst-case weighted verification bound, a canonical SUF-CMA bound, and the 124-bit endpoint gate. `SchemeClaim.security_le` derives the advertised probability inequality in Lean. The legacy MVP score is the exact integer `sigma * hverify`, with signature size as the tie-break. The new two-stage four-factor objective supersedes the earlier proposed full-track size exponent, but is not yet this protected claim's score.
+The comparator's sole definition hole is the submitted `SigScheme`.
+All other reachable statement definitions, including both floors, must match.
+Algorithm and theorem axiom closures are audited.
 
-Submissions import `LeanSphincs.Benchmark.Target`, trusted `Mathlib`, `VCVio`, `HashSig` modules, and flat local helpers. Only `.lean` and the three named metric files are admitted. Limits are 1,000 files, 4 MiB per file and 10 MiB total. Source checks reject nested directories, symlinks, dynamic import/elaboration constructs and `native_decide`. The independent verifier must reproduce this policy before opening submissions.
+The three declarations remain `sigma.txt`, `hverify.txt` and `bound.txt`.
+The first two contain canonical positive integers <= 2^63-1.
+Each bound row is `[numerator, denominator, a, b, k]`, with positive reduced
+fraction, natural exponents <= 1024, and distinct monomials sorted by `(a,b,k)`.
+The first exponent now applies to total work Q. Numeric format compatibility
+does not imply statement-semantic compatibility.
 
-`sigma.txt` and `hverify.txt` contain positive canonical ASCII integers, at most 2⁶³−1. `bound.txt` contains 1–128 JSON arrays `[numerator, denominator, a, b, k]`, with positive reduced fractions, exponents at most 1024, and distinct monomials sorted by `(a,b,k)`. The renderer converts denominators to predecessor encoding after validation; it never inserts arbitrary Lean source from a metric file.
+Receipt claim identifier: `suf-cma-total-work-pk32-decay-v1`.
+The hash meter identifier is unchanged. Old receipts must be reverified against
+the revised claim; changed protected hashes and the claim identifier distinguish
+them. The renderer still binds all three declarations.
 
-For example, the public 126-bit slope is declared as:
+The objective is **c * sigma + hverify** for the hash-work profile, computed
+with exact rational arithmetic. The price is read from organizer-owned
+`benchmark/scoring.json`, included in the harness manifest and integrity checks.
+The profile currently has `bandwidth_price: null`: **no scalar score is emitted**,
+even on accepted local verification. A calibrated price must be a positive
+reduced rational with bounded integer components. It is never an entrant file.
+Research experiments may explore explicitly supplied prices, always unranked.
 
-```json
-[[4,1,1,0,128]]
-```
+A configured score is emitted only after successful comparison and post-run
+integrity checks. Every receipt is still `ranked: false`. The declarations-only
+score helper also reports unverified/unranked status. The OTS additive Lean
+helpers prove arithmetic properties, not algorithm certificates.
 
-The renderer imports only the protected target, creates a placeholder `LeanSphincs.Submission.scheme : SigScheme`, and states `LeanSphincs.Benchmark.candidate : SchemeClaim ...` with all three declared values. The comparator's sole `definition_names` entry is that scheme. Every other reachable statement definition must match exactly; candidate proof and scheme axiom closures admit only `propext`, `Classical.choice` and `Quot.sound`.
+## Trust boundary, provenance and launch work
 
-Comparator is pinned to `777e7f56119efc0fac34003db4efe831e0b53723`, with lean4export pinned by its manifest to `b18d673bd29b476466a51a3be1012df2ed322b10`. The recorded compatibility patch comes from proximity-prize: it kernel-checks untrusted modules with the pinned `leanchecker`, retaining structural comparison and axiom checking. It does not replay the entire trusted library in a fresh kernel environment. Landrun is pinned to `811cfff51ceaf3d9843708aa6d22e9b84ccac8b4`. Ranked deployment still requires a protected verifier image, an external audit and registration.
+Source admission is flat, bounded and import-checked: 1,000 files, 4 MiB per file,
+10 MiB total; no symlinks, dynamic elaborators, native_decide or build-time
+execution. Protected sources and dependencies are read-only in candidate runs.
+Private per-run projects, fresh candidate outputs, axiom checks, kernel checking,
+admission locking, atomic receipts and integrity rechecks are described in
+[HARNESS_SECURITY.md](HARNESS_SECURITY.md). None is an external audit.
 
-The comparator canary fixtures are source files under `LeanSphincsTest/Submission/` (`Good`, `WrongSigma`, `WrongMetrics`, `WrongBound`, `SmuggledAxiom`), each defining its own `LeanSphincsTest.Submission.scheme` against the current `Option Bytes` signing interface and proving or (for the axiom case) smuggling `LeanSphincsTest.candidate`. They are built by module name; the `LeanSphincsTest.lean` root deliberately imports only the non-canary test modules. Stale `.olean` files from an older interface were the cause of one kernel-replay failure and are now rebuilt from these sources.
+- Lean: 4.31.0.
+- VCVio: `cbd4144b51d92da00dd50f05e068b2348fa6e529`.
+- Comparator: `777e7f56119efc0fac34003db4efe831e0b53723`.
+- lean4export: `b18d673bd29b476466a51a3be1012df2ed322b10`.
+- Landrun: `811cfff51ceaf3d9843708aa6d22e9b84ccac8b4`.
+- Harness reference: proximity-prize `da60d54326afbe85d18a94d0e5c479a724e55ad7`.
+- XMSS reference: `0e82ea922c570b8c4d706a06bc3dc7caf3b34ff0`.
+- SPHINCS reference: `a1daec3b929d8963b4eee4f1e05985065a96de9d`.
 
-## Provenance and remaining work
-
-- VCVio: `cbd4144b51d92da00dd50f05e068b2348fa6e529`; Lean 4.31.0; transitive revisions in `lake-manifest.json`.
-- XMSS statement: leanVM-b `0e82ea922c570b8c4d706a06bc3dc7caf3b34ff0`.
-- SPHINCS PR #19: `a1daec3b929d8963b4eee4f1e05985065a96de9d`.
-- Harness source policy and comparator patch: proximity-prize `da60d54326afbe85d18a94d0e5c479a724e55ad7`.
-
-WS5 still needs the complete production-profile negative suite, including a real accepted baseline whose declarations can be mutated. WS6 still needs a signature scheme, correctness/serialization and weighted-cost proofs, and a game transport of its security theorem. PR #19 is a concrete additional route to that baseline; it need not wait for the separate HashSig oracle-ization track. Wallet gates, presign/cache semantics, the sanity cycle cap and full-track bound rules remain outside this MVP implementation.
+The five positive/negative metric comparator canaries do not establish security.
+WS5 needs mutation tests built from an accepted baseline; WS6 needs serialization,
+game and cost transport, signing failure and same-scheme lifetime decay.
+The full executable binding, 1.5 s signing / 60 s keygen / 64 KiB RAM gates,
+persistent storage profile, execution cap and price calibration remain unfinished.
+No fixed hash-unit-to-seconds conversion is asserted. Independent verifier
+registration, audit, governance and promotion still precede launch.
